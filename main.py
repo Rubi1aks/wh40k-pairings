@@ -1,21 +1,31 @@
 import os
 import json
 import urllib.request
+import urllib.error
 import openpyxl
 import tempfile
-from fastapi import FastAPI, HTTPException
+import re
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from dotenv import load_dotenv
 import minimax
-import re
+
+load_dotenv()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
-    return FileResponse("static/index.html")
+    return FileResponse("static/viewer.html")
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("ВНИМАНИЕ: Переменные SUPABASE_URL и SUPABASE_KEY не заданы!")
 
 class SheetRequest(BaseModel):
     url: str

@@ -9,10 +9,7 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
 import minimax
-
-load_dotenv()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")

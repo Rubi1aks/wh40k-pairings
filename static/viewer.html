@@ -8,7 +8,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-  // ВСТАВЬ СЮДА СВОЙ КОНФИГ ИЗ FIREBASE
   const firebaseConfig = {
     apiKey: "AIzaSyAYcT2Z6ehIJDOU3VyKIJaPdwaZmKb3-w4",
     authDomain: "wh40k-pairings.firebaseapp.com",
@@ -20,7 +19,7 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
-  const ROOM_ID = "default_team_room"; // Одна общая комната для всех
+  const ROOM_ID = "default_team_room"; 
 
   window.FirebaseAPI = {
     save: async (data) => {
@@ -887,34 +886,36 @@ window.addEventListener('drop', (e) => {
 });
 
 /* ---------- init ---------- */
+/* ---------- init ---------- */
 (async function init() {
   loadSavedFromSession();
   await loadWinRates();
 
   const loader = document.createElement('div');
+  loader.id = 'loadingOverlay';
   loader.style.cssText = 'position:fixed;inset:0;background:#0f1014;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9999;';
   loader.innerText = 'Загрузка парингов из облака...';
   document.body.appendChild(loader);
 
   try {
-    // Ждем инициализации Firebase
     while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
     const data = await window.FirebaseAPI.load();
     
+    document.body.removeChild(loader);
+
     if (!data) {
-      document.body.removeChild(loader);
-      document.body.innerHTML = `
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f1014;color:#e0e0e0;font-family:system-ui;">
-          <h2>В облаке пока нет парингов</h2>
-          <p style="color:#8a92a0;margin-bottom:20px;">Нажмите «Сгенерировать паринги» в левом нижнем углу.</p>
-        </div>
-      `;
+      // Если данных нет, показываем заглушку по центру, НО НЕ УДАЛЯЕМ интерфейс!
+      document.getElementById('title').textContent = 'Нет данных в облаке';
+      document.getElementById('summary').innerHTML = '<span style="color:#8a92a0">Нажмите «⚙️ Сгенерировать паринги» в левом нижнем углу.</span>';
+      
+      // Блокируем остальной интерфейс, чтобы не было ошибок
+      document.getElementById('path').innerHTML = '<div style="text-align:center;color:#6a7280;margin-top:50px;">Здесь появится дерево парингов.</div>';
+      document.getElementById('pairs').innerHTML = '<div class="empty-hint">Нет пар</div>';
       return;
     }
     
     R = data;
     if (R.winrates) WINRATES = R.winrates;
-    document.body.removeChild(loader);
     bestFromStart();
   } catch (e) {
     document.body.innerHTML = `<div style="color:#f88;padding:50px;font-family:system-ui;">Ошибка загрузки из БД: ${e.message}</div>`;

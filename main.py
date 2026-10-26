@@ -145,6 +145,37 @@ def db_save(req: SavePayload):
         error_body = e.read().decode('utf-8')
         raise HTTPException(status_code=500, detail=f"Supabase Error: {error_body}")
 
+@app.get("/api/db/winrates")
+def db_get_winrates():
+    url = f"{SUPABASE_URL}/winrates_cache?id=eq.default_winrates&select=data"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(r) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+            if rows and len(rows) > 0:
+                return Response(content=rows[0]['data'], media_type="application/json")
+            return Response(content="{}", media_type="application/json")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/db/winrates")
+def db_save_winrates(req: SavePayload):
+    url = f"{SUPABASE_URL}/winrates_cache"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+    }
+    payload = json.dumps([{"id": "default_winrates", "data": req.data}]).encode("utf-8")
+    try:
+        r = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        urllib.request.urlopen(r)
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
 @app.get("/api/db/load")
 def db_load():
     url = f"{SUPABASE_URL}/shared_room?id=eq.default_team_room&select=data"

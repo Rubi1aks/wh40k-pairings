@@ -64,8 +64,6 @@ def generate(req: GenerateRequest):
             raise ValueError("Лист не найден")
         
         ws = wb[req.sheet_name]
-        
-        # Используем функции из minimax
         players, enemies = minimax.validate_table(ws)
         our = [p[0] for p in players]
         our_row = {p[0]: p[1] for p in players}
@@ -81,15 +79,11 @@ def generate(req: GenerateRequest):
                 sm[p][e] = minimax._to_score(mv)
                 sn[p][e] = minimax._to_score(nv)
 
-        # Принудительно ставим champ_champ для 3 и 5 человек
         fmt = req.format_type
-        if req.team_size in (3, 5):
-            fmt = 'champ_champ'
+        if req.team_size in (3, 5): fmt = 'champ_champ'
             
-        # Генерируем
         report = minimax.generate_pairing(our, enemy_names, sm, sn, req.scale, fmt)
         
-        # Прикрепляем винрейты
         try:
             with open('winrates.json', 'r', encoding='utf-8') as f:
                 report['winrates'] = json.load(f)

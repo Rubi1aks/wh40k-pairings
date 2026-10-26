@@ -3,7 +3,37 @@
 <head>
 <meta charset="utf-8">
 <title>Warhammer 40k паринги</title>
+<!-- Подключаем Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+  // ВСТАВЬ СЮДА СВОЙ КОНФИГ ИЗ FIREBASE
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYcT2Z6ehIJDOU3VyKIJaPdwaZmKb3-w4",
+    authDomain: "wh40k-pairings.firebaseapp.com",
+    projectId: "wh40k-pairings",
+    storageBucket: "wh40k-pairings.firebasestorage.app",
+    messagingSenderId: "92375427113",
+    appId: "1:92375427113:web:aa4f2c4f0f574090b15438"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const ROOM_ID = "default_team_room"; // Одна общая комната для всех
+
+  window.FirebaseAPI = {
+    save: async (data) => {
+      await setDoc(doc(db, "shared_room", ROOM_ID), { data: JSON.stringify(data), updatedAt: Date.now() });
+    },
+    load: async () => {
+      const snap = await getDoc(doc(db, "shared_room", ROOM_ID));
+      return snap.exists() ? JSON.parse(snap.data().data) : null;
+    }
+  };
+</script>
 <style>
+/* ... CSS оставляем прежним ... */
 *{box-sizing:border-box}
 body{font-family:system-ui,sans-serif;background:#0f1014;color:#e0e0e0;margin:0;height:100vh;overflow:hidden}
 .layout{display:grid;grid-template-columns:270px 1fr 400px;height:100vh}
@@ -31,6 +61,7 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .chk.accent{background:#2a1d3a;border-color:#6a4a9a}
 .chk.accent.on{background:#3a2d5a;border-color:#a080ff}
 .path{padding:16px 20px;flex:1}
+/* ... остальные стили дерева, табло и винрейтов без изменений ... */
 .matrix-wrap{padding:0 20px 16px}
 .matrix-card{background:#16181d;border:1px solid #23262e;border-radius:8px;padding:12px 14px;margin-bottom:10px}
 .matrix-card h3{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a92a0;margin:0 0 10px;font-weight:600}
@@ -159,8 +190,6 @@ table.strat-table tbody tr:hover{background:#262a32}
 .session-hint{font-size:10px;color:#565c68;margin-top:auto;padding-top:12px;text-align:center;font-style:italic}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2a3a5a;color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:100}
 .toast.on{opacity:1}
-
-/* Winrates */
 .wr-widget{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#14171c;border:1px solid #23262e;border-radius:8px;margin:10px 20px 0;font-size:12px}
 .wr-widget label{color:#8a92a0;font-size:11px}
 .wr-widget select{padding:5px 9px;border-radius:5px;background:#1e2128;color:#d0d6e0;border:1px solid #333a45;font-size:12px;min-width:180px}
@@ -194,10 +223,22 @@ table.strat-table tbody tr:hover{background:#262a32}
 .wr-val.pos{color:#6cd88a}
 .wr-val.neg{color:#ff8080}
 .wr-val.mid{color:#c0c6d0}
-
-/* Drag and Drop overlay */
 .drop-overlay { position: fixed; inset: 0; background: rgba(42,58,90,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; border: 4px dashed #5b9aff; color: #fff; font-size: 24px; font-weight: bold; pointer-events: none; text-align: center; padding: 40px; }
 .drop-overlay.active { display: flex; }
+
+/* Модальное окно генерации */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.active{display:flex}
+.modal-card{background:#16181d;border:1px solid #333a45;border-radius:12px;padding:24px;width:100%;max-width:460px;color:#e0e0e0}
+.modal-card h2{margin-top:0;font-size:18px;color:#fff;margin-bottom:16px}
+.modal-card label{display:block;margin:12px 0 4px;font-size:12px;color:#8a92a0}
+.modal-card input, .modal-card select{width:100%;padding:8px 10px;background:#1e2128;border:1px solid #333a45;color:#fff;border-radius:6px;font-size:13px;box-sizing:border-box}
+.modal-card button{width:100%;padding:10px;margin-top:16px;background:#2a3a5a;border:1px solid #5b9aff;color:#fff;border-radius:6px;cursor:pointer;font-weight:bold}
+.modal-card button:hover{background:#3a5a8a}
+.modal-card .close-btn{background:transparent;border:1px solid #333a45;margin-top:8px;color:#8a92a0}
+.modal-card .close-btn:hover{background:#262a32;color:#fff}
+.drop-zone { border: 2px dashed #333a45; border-radius: 8px; padding: 20px; text-align: center; color: #8a92a0; cursor: pointer; transition: .2s; background: #14171c; margin-top:12px; font-size:12px; }
+.drop-zone.dragover { border-color: #5b9aff; background: #1e2432; color: #e0e0e0; }
 </style>
 </head>
 <body>
@@ -225,12 +266,6 @@ table.strat-table tbody tr:hover{background:#262a32}
         <label class="chk accent" id="chkManual" title="Если включено — клик по плашке не тянет за собой автозаполнение ниже.">
           <input type="checkbox" onchange="toggleManual(this.checked)"> Ручное заполнение
         </label>
-        
-        <div style="margin-left:auto; display:flex; gap:6px;">
-          <button class="btn" onclick="downloadJson()" title="Скачать текущие паринги в файл">💾 Скачать JSON</button>
-          <button class="btn" onclick="document.getElementById('uploadInput').click()" title="Загрузить паринги из файла">📂 Загрузить JSON</button>
-          <input type="file" id="uploadInput" accept=".json" style="display:none" onchange="handleFileUpload(event)">
-        </div>
       </div>
       <div class="metrics-row">
         <span>Показатели:</span>
@@ -282,30 +317,16 @@ table.strat-table tbody tr:hover{background:#262a32}
     <div class="matrix-wrap" id="matrixWrap" style="display:none"></div>
     <div id="helpBox" style="display:none;padding:12px 20px;background:#14171c;border-bottom:1px solid #23262e;font-size:12px;line-height:1.55;color:#c0c6d0">
       <div style="display:grid;grid-template-columns:130px 1fr;gap:6px 14px">
-        <b style="color:#8ab8ff">min</b>
-        <span>Гарантия: минимум очков, если <b>оппонент играет худшим для нас образом</b>.</span>
-        <b style="color:#6cd88a">max</b>
-        <span>Максимум при самом удобном ответе.</span>
-        <b style="color:#8ab8ff">avg</b>
-        <span>Среднее по всем ответам оппонента.</span>
-        <b style="color:#c090ff">σ</b>
-        <span>Стандартное отклонение.</span>
-        <b style="color:#ffc870">min%</b>
-        <span>Как часто оппонент попадает в наш минимум.</span>
-        <b style="color:#a080ff">Ручное заполнение</b>
-        <span>Клик по плашке не заполняет линию дальше автоматически.</span>
-        <b style="color:#ff8080">× на шаге</b>
-        <span>Отменяет выбор этого шага и всех ниже.</span>
-        <b style="color:#8ab8ff">Сравнение стратегий</b>
-        <span>Таблица по каждому D1.</span>
-        <b style="color:#ffb070">Узкие места</b>
-        <span>Пары с наименьшим вкладом. Клик — переход к шагу.</span>
-        <b style="color:#6cd88a">WR</b>
-        <span>Реальный винрейт пары по данным <a href="https://listhammer.info" target="_blank" style="color:#6cd88a">Listhammer</a>.</span>
-        <b style="color:#a080ff">Режимы WR</b>
-        <span><b>Пара</b> — винрейт одной фракции против конкретной. <b>Все матчапы</b> — полный список противников выбранной фракции с группировкой: сначала «Противники в текущем паринге», потом «Наши фракции», потом остальные.</span>
-        <b style="color:#5b9aff">Файлы</b>
-        <span>Вы можете скачать текущие паринги в JSON, отправить их другу, и он сможет загрузить их через кнопку «Загрузить JSON» или просто перетащив файл в окно браузера.</span>
+        <b style="color:#8ab8ff">min</b><span>Гарантия: минимум очков, если <b>оппонент играет худшим для нас образом</b>.</span>
+        <b style="color:#6cd88a">max</b><span>Максимум при самом удобном ответе.</span>
+        <b style="color:#8ab8ff">avg</b><span>Среднее по всем ответам оппонента.</span>
+        <b style="color:#c090ff">σ</b><span>Стандартное отклонение.</span>
+        <b style="color:#ffc870">min%</b><span>Как часто оппонент попадает в наш минимум.</span>
+        <b style="color:#a080ff">Ручное заполнение</b><span>Клик по плашке не заполняет линию дальше автоматически.</span>
+        <b style="color:#ff8080">× на шаге</b><span>Отменяет выбор этого шага и всех ниже.</span>
+        <b style="color:#8ab8ff">Сравнение стратегий</b><span>Таблица по каждому D1.</span>
+        <b style="color:#ffb070">Узкие места</b><span>Пары с наименьшим вкладом. Клик — переход к шагу.</span>
+        <b style="color:#6cd88a">WR</b><span>Реальный винрейт пары по данным Listhammer.</span>
       </div>
     </div>
     <div class="path" id="path"></div>
@@ -329,6 +350,56 @@ table.strat-table tbody tr:hover{background:#262a32}
     </div>
   </aside>
 </div>
+
+<!-- Плавающая кнопка генерации -->
+<button onclick="openGenModal()" style="position:fixed;bottom:20px;left:20px;z-index:999;background:#1e3a20;border:1px solid #6cd88a;color:#fff;padding:12px 20px;border-radius:8px;cursor:pointer;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;">
+  ⚙️ Сгенерировать паринги
+</button>
+
+<!-- Модалка генерации -->
+<div class="modal-overlay" id="genModal">
+  <div class="modal-card">
+    <h2>Генерация парингов</h2>
+    
+    <label>Ссылка на Google Sheets:</label>
+    <input type="text" id="gurl" placeholder="https://docs.google.com/spreadsheets/d/...">
+    
+    <label>Лист (Тур):</label>
+    <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
+    
+    <label>Размер команды:</label>
+    <select id="tsize" onchange="toggleFormatSelect()">
+      <option value="3">3 на 3</option>
+      <option value="5">5 на 5</option>
+      <option value="6" selected>6 на 6</option>
+      <option value="8">8 на 8</option>
+    </select>
+
+    <label>Формат финала:</label>
+    <select id="format">
+      <option value="champ_ref" selected>Чемпион vs Отказник</option>
+      <option value="champ_champ">Чемпион vs Чемпион</option>
+    </select>
+
+    <label>Шкала оценок:</label>
+    <select id="scale">
+      <option value="10" selected>10-балльная</option>
+      <option value="7">7-балльная</option>
+      <option value="5">5-балльная</option>
+    </select>
+
+    <button onclick="fetchSheets()" style="background:#262a32;border-color:#5b9aff;">Загрузить листы</button>
+    <button onclick="doGenerate()" style="margin-top:10px;">Сгенерировать</button>
+    <button class="close-btn" onclick="closeGenModal()">Отмена</button>
+    <div id="genStatus" style="color:#ffaa5b;font-size:12px;margin-top:10px;text-align:center;"></div>
+
+    <div class="drop-zone" id="dropZoneModal">
+      Или перетащите готовый .json файл
+      <input type="file" id="fileInputModal" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <div class="drop-overlay" id="dropOverlay">Отпустите файл для загрузки</div>
 
@@ -348,9 +419,12 @@ let wrMode = 'pair';
 
 const METRICS = { min: true, max: false, avg: true, std: false, freq: false };
 
-/* ================================================================
- * FACTION ALIASES
- * ================================================================ */
+/* ... (Функции алиасов, винрейтов, рендера графа остаются без изменений, как в прошлом viewer.html) ... */
+
+// Для экономии места я пропускаю огромный блок FACTIONS_TABLE и функций рендера. 
+// ВСТАВЬ СЮДА ВСЁ, ЧТО БЫЛО В ПРЕДЫДУЩЕМ viewer.html, начиная с `const FACTIONS_TABLE` и до `function renderBottlenecks()`. 
+// Всю эту часть я оставил в коде ниже полностью.
+
 const FACTIONS_TABLE = [
   { canonical: 'Adepta Sororitas', aliases: ['adepta sororitas','sororitas','сороритки','сорроритки','сёстры','сестры','сёстры битвы','адепта сороритас','сороры'] },
   { canonical: 'Adeptus Custodes', aliases: ['adeptus custodes','custodes','кустодес','кусты','кустодиане'] },
@@ -381,7 +455,6 @@ const FACTIONS_TABLE = [
   { canonical: 'Tyranids', aliases: ['tyranids','ниды','тираниды','тиранид'] },
   { canonical: 'World Eaters', aliases: ['world eaters','we','ве','ворлд итеры','ворлд иттеры','пожиратели миров'] },
 ];
-
 const ALIAS_MAP = {};
 for (const f of FACTIONS_TABLE) {
   ALIAS_MAP[f.canonical.toLowerCase()] = f.canonical;
@@ -389,11 +462,7 @@ for (const f of FACTIONS_TABLE) {
 }
 const ALIAS_LIST_SORTED = Object.keys(ALIAS_MAP).sort((a, b) => b.length - a.length);
 const WORD_CHAR = 'a-zа-яё0-9';
-
-function escapeRegex(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function resolveFaction(label) {
   if (!label) return null;
   const lower = String(label).toLowerCase().trim();
@@ -406,26 +475,16 @@ function resolveFaction(label) {
   }
   return null;
 }
-
-/* ================================================================
- * WINRATES
- * ================================================================ */
 async function loadWinRates() {
-  if (WINRATES) return; // уже загружены из отчета
+  if (WINRATES) return;
   try {
     const r = await fetch('winrates.json', { cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
-    if (!data || typeof data !== 'object' || !data.matrix) {
-      throw new Error('нет поля matrix');
-    }
+    if (!data || typeof data !== 'object' || !data.matrix) throw new Error('нет поля matrix');
     WINRATES = data;
-  } catch (e) {
-    WINRATES = null;
-    console.warn('winrates.json недоступен:', e.message);
-  }
+  } catch (e) { WINRATES = null; console.warn('winrates.json недоступен:', e.message); }
 }
-
 function getWinRate(factionA, factionB) {
   if (!WINRATES || !WINRATES.matrix) return null;
   const a = resolveFaction(factionA);
@@ -438,26 +497,20 @@ function getWinRate(factionA, factionB) {
   if (rowBA && typeof rowBA[a] === 'number') return 100.0 - rowBA[a];
   return null;
 }
-
 function getAllMatchups(subject) {
   if (!WINRATES || !WINRATES.matrix) return [];
   const subj = resolveFaction(subject);
   if (!subj) return [];
   const acc = {};
   const rowFwd = WINRATES.matrix[subj] || {};
-  for (const opp in rowFwd) {
-    const wr = rowFwd[opp];
-    if (typeof wr === 'number') acc[opp] = wr;
-  }
+  for (const opp in rowFwd) { if (typeof rowFwd[opp] === 'number') acc[opp] = rowFwd[opp]; }
   for (const other in WINRATES.matrix) {
-    if (other === subj) continue;
-    if (other in acc) continue;
+    if (other === subj || other in acc) continue;
     const row = WINRATES.matrix[other] || {};
     if (typeof row[subj] === 'number') acc[other] = 100 - row[subj];
   }
   return Object.entries(acc).map(([opp, wr]) => ({ opp, wr }));
 }
-
 function activeSets() {
   const ours = new Set(), theirs = new Set();
   if (!R) return { ours, theirs };
@@ -465,25 +518,16 @@ function activeSets() {
   for (const e of (R.enemies || [])) { const c = resolveFaction(e); if (c) theirs.add(c); }
   return { ours, theirs };
 }
-
 function orderedForLeft() {
   const { ours, theirs } = activeSets();
   const all = FACTIONS_TABLE.map(f => f.canonical);
-  const oursList = all.filter(f => ours.has(f));
-  const theirsOnly = all.filter(f => theirs.has(f) && !ours.has(f));
-  const rest = all.filter(f => !ours.has(f) && !theirs.has(f));
-  return { oursList, theirsOnly, rest };
+  return { oursList: all.filter(f => ours.has(f)), theirsOnly: all.filter(f => theirs.has(f) && !ours.has(f)), rest: all.filter(f => !ours.has(f) && !theirs.has(f)) };
 }
-
 function orderedForRight() {
   const { ours, theirs } = activeSets();
   const all = FACTIONS_TABLE.map(f => f.canonical);
-  const theirsList = all.filter(f => theirs.has(f));
-  const oursOnly = all.filter(f => ours.has(f) && !theirs.has(f));
-  const rest = all.filter(f => !ours.has(f) && !theirs.has(f));
-  return { theirsList, oursOnly, rest };
+  return { theirsList: all.filter(f => theirs.has(f)), oursOnly: all.filter(f => ours.has(f) && !theirs.has(f)), rest: all.filter(f => !ours.has(f) && !theirs.has(f)) };
 }
-
 function buildOptionsHtml(groupOrder, groupLabels) {
   let html = '';
   for (const key of groupOrder) {
@@ -495,941 +539,386 @@ function buildOptionsHtml(groupOrder, groupLabels) {
   }
   return html;
 }
-
 function setWrMode(mode) {
   wrMode = mode;
-  document.querySelectorAll('.wr-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === mode);
-  });
+  document.querySelectorAll('.wr-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
   document.getElementById('wrPairMode').style.display = mode === 'pair' ? 'inline-flex' : 'none';
   document.getElementById('wrAllMode').style.display = mode === 'all' ? 'inline-flex' : 'none';
   document.getElementById('wrAllWrap').style.display = mode === 'all' ? 'block' : 'none';
-  if (mode === 'all') renderAllMatchups();
-  else updateWinrateWidget();
+  if (mode === 'all') renderAllMatchups(); else updateWinrateWidget();
 }
-
 function populateWinrateWidget() {
   if (!R) return;
-
-  const leftOrder = orderedForLeft();
-  const rightOrder = orderedForRight();
-
-  const leftHtml = buildOptionsHtml(
-    ['oursList', 'theirsOnly', 'rest'],
-    {
-      oursList:  { label: 'Наши игроки',    list: leftOrder.oursList },
-      theirsOnly:{ label: 'Их фракции',     list: leftOrder.theirsOnly },
-      rest:      { label: 'Прочие фракции', list: leftOrder.rest },
-    });
-
-  const rightHtml = buildOptionsHtml(
-    ['theirsList', 'oursOnly', 'rest'],
-    {
-      theirsList: { label: 'Их фракции',     list: rightOrder.theirsList },
-      oursOnly:   { label: 'Наши игроки',    list: rightOrder.oursOnly },
-      rest:       { label: 'Прочие фракции', list: rightOrder.rest },
-    });
-
+  const leftOrder = orderedForLeft(); const rightOrder = orderedForRight();
+  const leftHtml = buildOptionsHtml(['oursList', 'theirsOnly', 'rest'], { oursList:  { label: 'Наши игроки', list: leftOrder.oursList }, theirsOnly:{ label: 'Их фракции', list: leftOrder.theirsOnly }, rest: { label: 'Прочие', list: leftOrder.rest } });
+  const rightHtml = buildOptionsHtml(['theirsList', 'oursOnly', 'rest'], { theirsList: { label: 'Их фракции', list: rightOrder.theirsList }, oursOnly: { label: 'Наши игроки', list: rightOrder.oursOnly }, rest: { label: 'Прочие', list: rightOrder.rest } });
   const subjHtml = leftHtml;
-
-  const fromSel = document.getElementById('wrFrom');
-  const toSel = document.getElementById('wrTo');
-  const subjSel = document.getElementById('wrSubject');
-
-  const prevFrom = fromSel.value;
-  const prevTo = toSel.value;
-  const prevSubj = subjSel.value;
-
-  fromSel.innerHTML = leftHtml;
-  toSel.innerHTML = rightHtml;
-  subjSel.innerHTML = subjHtml;
-
-  const pickOption = (sel, prev) => {
-    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
-    else if (sel.options.length) sel.selectedIndex = 0;
-  };
-  pickOption(fromSel, prevFrom);
-  pickOption(toSel, prevTo);
-  pickOption(subjSel, prevSubj);
-
-  fromSel.onchange = updateWinrateWidget;
-  toSel.onchange = updateWinrateWidget;
-  subjSel.onchange = renderAllMatchups;
-
-  if (wrMode === 'pair') updateWinrateWidget();
-  else renderAllMatchups();
+  const fromSel = document.getElementById('wrFrom'); const toSel = document.getElementById('wrTo'); const subjSel = document.getElementById('wrSubject');
+  const prevFrom = fromSel.value; const prevTo = toSel.value; const prevSubj = subjSel.value;
+  fromSel.innerHTML = leftHtml; toSel.innerHTML = rightHtml; subjSel.innerHTML = subjHtml;
+  const pickOption = (sel, prev) => { if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev; else if (sel.options.length) sel.selectedIndex = 0; };
+  pickOption(fromSel, prevFrom); pickOption(toSel, prevTo); pickOption(subjSel, prevSubj);
+  fromSel.onchange = updateWinrateWidget; toSel.onchange = updateWinrateWidget; subjSel.onchange = renderAllMatchups;
+  if (wrMode === 'pair') updateWinrateWidget(); else renderAllMatchups();
 }
-
 function updateWinrateWidget() {
-  const fromSel = document.getElementById('wrFrom');
-  const toSel = document.getElementById('wrTo');
-  const out = document.getElementById('wrResult');
-  const note = document.getElementById('wrNote');
+  const fromSel = document.getElementById('wrFrom'); const toSel = document.getElementById('wrTo'); const out = document.getElementById('wrResult'); const note = document.getElementById('wrNote');
   if (!fromSel || !toSel || !out || !note) return;
-
-  const a = fromSel.value, b = toSel.value;
-  const wr = getWinRate(a, b);
-
+  const a = fromSel.value, b = toSel.value; const wr = getWinRate(a, b);
   out.className = 'wr-result';
-  if (wr === null) {
-    out.textContent = '—';
-    out.classList.add('na');
-  } else {
-    out.textContent = wr.toFixed(1) + '%';
-    if (wr >= 55) out.classList.add('pos');
-    else if (wr <= 45) out.classList.add('neg');
-    else out.classList.add('mid');
-  }
-
-  if (!WINRATES) {
-    note.innerHTML = 'winrates.json не найден. Запусти <code>python minimax.py --recalc-winrates</code>.';
-  } else {
-    const ts = WINRATES.scraped_at || '—';
-    const rttTag = WINRATES.include_rtt ? ' · c RTT' : '';
-    const src = WINRATES.source || 'https://listhammer.info';
-    note.innerHTML = `источник: <a href="${src}" target="_blank" rel="noopener">Listhammer</a>, обновлён ${ts}${rttTag}`;
-  }
+  if (wr === null) { out.textContent = '—'; out.classList.add('na'); }
+  else { out.textContent = wr.toFixed(1) + '%'; out.classList.add(wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); }
+  if (!WINRATES) { note.innerHTML = 'winrates.json не найден.'; }
+  else { const ts = WINRATES.scraped_at || '—'; const rttTag = WINRATES.include_rtt ? ' · c RTT' : ''; note.innerHTML = `источник: ${WINRATES.source || 'Listhammer'}, обновлён ${ts}${rttTag}`; }
 }
-
 function renderAllMatchups() {
-  const wrap = document.getElementById('wrAllWrap');
-  const listEl = document.getElementById('wrAllList');
-  const titleEl = document.getElementById('wrAllTitle');
-  const metaEl = document.getElementById('wrAllMeta');
-  if (!wrap || !listEl) return;
-  if (wrMode !== 'all') return;
-
-  const subjectLabel = document.getElementById('wrSubject').value;
-  const subject = resolveFaction(subjectLabel);
-  if (!subject) {
-    listEl.innerHTML = '<div class="empty-hint">Фракция не распознана.</div>';
-    return;
-  }
-
+  const wrap = document.getElementById('wrAllWrap'); const listEl = document.getElementById('wrAllList'); const titleEl = document.getElementById('wrAllTitle'); const metaEl = document.getElementById('wrAllMeta');
+  if (!wrap || !listEl) return; if (wrMode !== 'all') return;
+  const subjectLabel = document.getElementById('wrSubject').value; const subject = resolveFaction(subjectLabel);
+  if (!subject) { listEl.innerHTML = '<div class="empty-hint">Фракция не распознана.</div>'; return; }
   const all = getAllMatchups(subject);
-  if (!all.length) {
-    listEl.innerHTML = '<div class="empty-hint">Нет данных Listhammer для этой фракции.</div>';
-    titleEl.textContent = subject;
-    metaEl.textContent = '';
-    return;
-  }
-
-  const { ours, theirs } = activeSets();
-  const groups = { enemies: [], ours: [], others: [] };
-  all.forEach(r => {
-    if (theirs.has(r.opp)) groups.enemies.push(r);
-    else if (ours.has(r.opp)) groups.ours.push(r);
-    else groups.others.push(r);
-  });
+  if (!all.length) { listEl.innerHTML = '<div class="empty-hint">Нет данных.</div>'; titleEl.textContent = subject; metaEl.textContent = ''; return; }
+  const { ours, theirs } = activeSets(); const groups = { enemies: [], ours: [], others: [] };
+  all.forEach(r => { if (theirs.has(r.opp)) groups.enemies.push(r); else if (ours.has(r.opp)) groups.ours.push(r); else groups.others.push(r); });
   for (const k in groups) groups[k].sort((a, b) => a.opp.localeCompare(b.opp));
-
-  const sectionHtml = (title, list) => {
-    if (!list.length) return '';
-    const rows = list.map(r => {
-      const cls = r.wr >= 55 ? 'pos' : r.wr <= 45 ? 'neg' : 'mid';
-      const oppCanon = resolveFaction(r.opp) || r.opp;
-      return `<div class="wr-row" title="${subject} vs ${oppCanon} = ${r.wr.toFixed(1)}%">
-        <span class="wr-opp">${subject}<i>vs</i>${oppCanon}</span>
-        <span class="wr-val ${cls}">${r.wr.toFixed(1)}%</span>
-      </div>`;
-    }).join('');
-    return `<div class="wr-section">
-      <div class="wr-section-h">${title}</div>
-      <div class="wr-list">${rows}</div>
-    </div>`;
-  };
-
-  titleEl.textContent = `Все матчапы · ${subject}`;
-  metaEl.textContent = `всего ${all.length} противников`;
-
-  listEl.innerHTML =
-    sectionHtml('Противники в текущем паринге', groups.enemies) +
-    sectionHtml('Наши фракции', groups.ours) +
-    sectionHtml('Прочие', groups.others);
+  const sectionHtml = (title, list) => { if (!list.length) return ''; const rows = list.map(r => { const cls = r.wr >= 55 ? 'pos' : r.wr <= 45 ? 'neg' : 'mid'; const oppCanon = resolveFaction(r.opp) || r.opp; return `<div class="wr-row" title="${subject} vs ${oppCanon} = ${r.wr.toFixed(1)}%"><span class="wr-opp">${subject}<i>vs</i>${oppCanon}</span><span class="wr-val ${cls}">${r.wr.toFixed(1)}%</span></div>`; }).join(''); return `<div class="wr-section"><div class="wr-section-h">${title}</div><div class="wr-list">${rows}</div></div>`; };
+  titleEl.textContent = `Все матчапы · ${subject}`; metaEl.textContent = `всего ${all.length} противников`;
+  listEl.innerHTML = sectionHtml('Противники в текущем паринге', groups.enemies) + sectionHtml('Наши фракции', groups.ours) + sectionHtml('Прочие', groups.others);
 }
 
-/* ================================================================
- * MAIN LOGIC
- * ================================================================ */
-function toggleMetric(name, on) {
-  METRICS[name] = on;
-  const id = 'chk' + name[0].toUpperCase() + name.slice(1);
-  document.getElementById(id).classList.toggle('on', on);
-  renderPath();
-}
-function toggleManual(on) {
-  manualMode = on;
-  document.getElementById('chkManual').classList.toggle('on', on);
-  if (!on && path.length) path = fillOptimal(path);
-  render();
-}
-
+function toggleMetric(name, on) { METRICS[name] = on; document.getElementById('chk' + name[0].toUpperCase() + name.slice(1)).classList.toggle('on', on); renderPath(); }
+function toggleManual(on) { manualMode = on; document.getElementById('chkManual').classList.toggle('on', on); if (!on && path.length) path = fillOptimal(path); render(); }
 const fmt = v => (v===null||v===undefined||Number.isNaN(v)) ? '—' : v.toFixed(1);
 const N = id => R.nodes[id];
 const isOffer = ph => ph === 'offers_our' || ph === 'offers_enemy';
-
 function optVal(node, o) { return o.c === -1 ? o.d : o.d + (N(o.c).v ?? 0); }
-function bestIdx(node) {
-  if (!node.o || !node.o.length) return null;
-  if (typeof node.ci === 'number' && node.ci >= 0 && node.ci < node.o.length) {
-    return node.ci;
-  }
-  const i = node.o.findIndex(o => o.op);
-  return i === -1 ? 0 : i;
-}
-function childOfLast(p) {
-  if (!p.length) return R.root_id;
-  return N(p[p.length-1].nodeId).o[p[p.length-1].optIdx].c;
-}
-function fillOptimal(prefix) {
-  const p = prefix.slice();
-  let cur = childOfLast(p);
-  const seen = new Set();
-  while (cur !== -1 && cur !== null && !seen.has(cur)) {
-    seen.add(cur);
-    const node = N(cur);
-    const bi = bestIdx(node);
-    if (bi === null) break;
-    p.push({nodeId: cur, optIdx: bi});
-    cur = node.o[bi].c;
-  }
-  return p;
-}
-
-function nodeStats(nodeId) {
-  const s = N(nodeId).s;
-  return s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 0 };
-}
-function cumStats(nodeId, optIdx, accBefore) {
-  const node = N(nodeId);
-  const o = node.o[optIdx];
-  const base = accBefore + o.d;
-  if (o.c === -1) return { min: base, max: base, avg: base, std: 0, hist: {[base]: 1}, count: 1 };
-  const sub = N(o.c).s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 1 };
-  const hist = {};
-  for (const k in sub.hist) hist[Math.round(Number(k) + base)] = sub.hist[k];
-  return { min: sub.min + base, max: sub.max + base, avg: sub.avg + base,
-           std: sub.std, hist, count: sub.count };
-}
-
-function bestFromStart() {
-  pendingFirst = {}; path = fillOptimal([]); activeSavedIdx = -1; render();
-}
-function resetAll() {
-  pendingFirst = {}; path = []; activeSavedIdx = -1; render();
-}
-function optimizeFromCurrent() {
-  pendingFirst = {};
-  if (!path.length) { path = fillOptimal([]); activeSavedIdx = -1; render(); return; }
-  const last = path[path.length - 1];
-  const child = N(last.nodeId).o[last.optIdx].c;
-  if (child === -1 || child === null) { toast('Линия уже заполнена'); return; }
-  path = fillOptimal(path); activeSavedIdx = -1; render();
-}
-function optimizeFromStep() {
-  const inp = document.getElementById('stepInput');
-  let x = parseInt(inp.value, 10);
-  if (!Number.isFinite(x) || x < 1) x = 1;
-  pendingFirst = {};
-  const prefix = path.slice(0, x - 1);
-  path = fillOptimal(prefix); activeSavedIdx = -1; render();
-}
-function clickOption(nodeId, optIdx) {
-  delete pendingFirst[nodeId];
-  const idx = path.findIndex(p => p.nodeId === nodeId);
-  let prefix;
-  if (idx === -1) prefix = path.slice();
-  else prefix = path.slice(0, idx);
-  prefix.push({nodeId, optIdx});
-  path = manualMode ? prefix : fillOptimal(prefix);
-  activeSavedIdx = -1;
-  render();
-}
-function crossStep(i) {
-  const nodeId = path[i].nodeId;
-  delete pendingFirst[nodeId];
-  path = path.slice(0, i);
-  for (const k of Object.keys(pendingFirst)) {
-    if (!path.find(p => p.nodeId === k)) delete pendingFirst[k];
-  }
-  activeSavedIdx = -1; render();
-}
-function handleOfferClick(nodeId, faction) {
-  const node = N(nodeId);
-  const first = pendingFirst[nodeId];
-  if (!first) { pendingFirst[nodeId] = faction; renderPath(); return; }
-  if (first === faction) { delete pendingFirst[nodeId]; renderPath(); return; }
-  const target = [first, faction].sort().join('|');
-  let found = -1;
-  node.o.forEach((o, i) => {
-    const parts = o.a.split(' + ').sort();
-    if (parts.length === 2 && parts.join('|') === target) found = i;
-  });
-  if (found >= 0) clickOption(nodeId, found);
-}
-
-function toggleMatrix() {
-  matrixVisible = !matrixVisible;
-  const wrap = document.getElementById('matrixWrap');
-  wrap.style.display = matrixVisible ? 'block' : 'none';
-  document.getElementById('matrixBtn').classList.toggle('toggle-on', matrixVisible);
-  if (matrixVisible) renderMatrix();
-}
+function bestIdx(node) { if (!node.o || !node.o.length) return null; if (typeof node.ci === 'number' && node.ci >= 0 && node.ci < node.o.length) return node.ci; const i = node.o.findIndex(o => o.op); return i === -1 ? 0 : i; }
+function childOfLast(p) { if (!p.length) return R.root_id; return N(p[p.length-1].nodeId).o[p[p.length-1].optIdx].c; }
+function fillOptimal(prefix) { const p = prefix.slice(); let cur = childOfLast(p); const seen = new Set(); while (cur !== -1 && cur !== null && !seen.has(cur)) { seen.add(cur); const node = N(cur); const bi = bestIdx(node); if (bi === null) break; p.push({nodeId: cur, optIdx: bi}); cur = node.o[bi].c; } return p; }
+function nodeStats(nodeId) { const s = N(nodeId).s; return s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 0 }; }
+function cumStats(nodeId, optIdx, accBefore) { const node = N(nodeId); const o = node.o[optIdx]; const base = accBefore + o.d; if (o.c === -1) return { min: base, max: base, avg: base, std: 0, hist: {[base]: 1}, count: 1 }; const sub = N(o.c).s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 1 }; const hist = {}; for (const k in sub.hist) hist[Math.round(Number(k) + base)] = sub.hist[k]; return { min: sub.min + base, max: sub.max + base, avg: sub.avg + base, std: sub.std, hist, count: sub.count }; }
+function bestFromStart() { pendingFirst = {}; path = fillOptimal([]); activeSavedIdx = -1; render(); }
+function resetAll() { pendingFirst = {}; path = []; activeSavedIdx = -1; render(); }
+function optimizeFromCurrent() { pendingFirst = {}; if (!path.length) { path = fillOptimal([]); activeSavedIdx = -1; render(); return; } const last = path[path.length - 1]; const child = N(last.nodeId).o[last.optIdx].c; if (child === -1 || child === null) { toast('Линия уже заполнена'); return; } path = fillOptimal(path); activeSavedIdx = -1; render(); }
+function optimizeFromStep() { const inp = document.getElementById('stepInput'); let x = parseInt(inp.value, 10); if (!Number.isFinite(x) || x < 1) x = 1; pendingFirst = {}; const prefix = path.slice(0, x - 1); path = fillOptimal(prefix); activeSavedIdx = -1; render(); }
+function clickOption(nodeId, optIdx) { delete pendingFirst[nodeId]; const idx = path.findIndex(p => p.nodeId === nodeId); let prefix; if (idx === -1) prefix = path.slice(); else prefix = path.slice(0, idx); prefix.push({nodeId, optIdx}); path = manualMode ? prefix : fillOptimal(prefix); activeSavedIdx = -1; render(); }
+function crossStep(i) { const nodeId = path[i].nodeId; delete pendingFirst[nodeId]; path = path.slice(0, i); for (const k of Object.keys(pendingFirst)) { if (!path.find(p => p.nodeId === k)) delete pendingFirst[k]; } activeSavedIdx = -1; render(); }
+function handleOfferClick(nodeId, faction) { const node = N(nodeId); const first = pendingFirst[nodeId]; if (!first) { pendingFirst[nodeId] = faction; renderPath(); return; } if (first === faction) { delete pendingFirst[nodeId]; renderPath(); return; } const target = [first, faction].sort().join('|'); let found = -1; node.o.forEach((o, i) => { const parts = o.a.split(' + ').sort(); if (parts.length === 2 && parts.join('|') === target) found = i; }); if (found >= 0) clickOption(nodeId, found); }
+function toggleMatrix() { matrixVisible = !matrixVisible; document.getElementById('matrixWrap').style.display = matrixVisible ? 'block' : 'none'; document.getElementById('matrixBtn').classList.toggle('toggle-on', matrixVisible); if (matrixVisible) renderMatrix(); }
 function setMatrixMode(m) { matrixMode = m; renderMatrix(); }
 function renderMatrix() {
-  if (!R || !R.matrix) return;
-  const wrap = document.getElementById('matrixWrap');
-  const data = R.matrix[matrixMode];
-  const players = R.players, enemies = R.enemies;
+  if (!R || !R.matrix) return; const wrap = document.getElementById('matrixWrap'); const data = R.matrix[matrixMode]; const players = R.players, enemies = R.enemies;
   const cls = v => v==null?'none':v<=1?'e0':v<=3?'e1':v<=6?'e2':v<=8?'e3':'e4';
   const cell = v => v==null ? `<td class="v none">—</td>` : `<td class="v ${cls(v)}">${v}</td>`;
   const header = `<tr><th class="row-head">Мы ↓ / Они →</th>${enemies.map(e=>`<th>${e}</th>`).join('')}</tr>`;
   const rows = players.map((p,i)=>`<tr><td class="row-head">${p}</td>${enemies.map((_,j)=>cell(data[i][j])).join('')}</tr>`).join('');
-  wrap.innerHTML = `
-    <div class="matrix-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <h3 style="margin:0">Матрица оценок · ${matrixMode==='my'?'«Мой»':'«Не мой»'}</h3>
-        <div style="display:flex;gap:6px">
-          <button class="btn ${matrixMode==='my'?'toggle-on':''}" onclick="setMatrixMode('my')">Мой</button>
-          <button class="btn ${matrixMode==='not'?'toggle-on':''}" onclick="setMatrixMode('not')">Не мой</button>
-          <button class="btn" onclick="toggleMatrix()">✕ Скрыть</button>
-        </div>
-      </div>
-      <div class="matrix-scroll"><table class="matrix">${header}${rows}</table></div>
-    </div>`;
+  wrap.innerHTML = `<div class="matrix-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Матрица оценок · ${matrixMode==='my'?'«Мой»':'«Не мой»'}</h3><div style="display:flex;gap:6px"><button class="btn ${matrixMode==='my'?'toggle-on':''}" onclick="setMatrixMode('my')">Мой</button><button class="btn ${matrixMode==='not'?'toggle-on':''}" onclick="setMatrixMode('not')">Не мой</button><button class="btn" onclick="toggleMatrix()">✕ Скрыть</button></div></div><div class="matrix-scroll"><table class="matrix">${header}${rows}</table></div></div>`;
+}
+function toggleHelp() { const el = document.getElementById('helpBox'); const on = el.style.display === 'none'; el.style.display = on ? 'block' : 'none'; document.getElementById('helpBtn').classList.toggle('toggle-on', on); }
+function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._tm); toast._tm = setTimeout(() => t.classList.remove('on'), 1200); }
+function copySummary() {
+  if (!path.length) { toast('Линия пуста'); return; } const g = computeGuarantee(); const pairs = collectPairsWithIdx().map(e => e.pair);
+  let txt = `Гарантия: ${fmt(g)} (порог ${R.threshold})\nПары:\n`;
+  pairs.forEach(p => { const wr = getWinRate(p[0], p[1]); const wrTxt = wr !== null ? ` [WR ${wr.toFixed(1)}%]` : ''; txt += `  ${p[0]} vs ${p[1]} — ${fmt(p[3])}${wrTxt}\n`; });
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(() => toast('Скопировано'), () => { window.prompt('Скопируйте:', txt); }); } else { window.prompt('Скопируйте:', txt); }
+}
+function computeGuarantee() { if (!path.length) return null; const last = path[path.length-1]; const accBefore = accumulatedBefore(path.length-1); return cumStats(last.nodeId, last.optIdx, accBefore).min; }
+function computeOptDelta() { if (!path.length) return 0; const root = N(R.root_id); const optIdx = bestIdx(root); if (optIdx === null) return 0; const optMin = cumStats(R.root_id, optIdx, 0).min; const cur = computeGuarantee(); return cur - optMin; }
+function saveCurrent() { if (!path.length) return; const v = computeGuarantee(); const d1Opt = N(path[0].nodeId).o[path[0].optIdx]; saved.push({ name: `${d1Opt.a} (${path.length} шагов)`, value: v, path: JSON.parse(JSON.stringify(path)) }); persistSaved(); renderSaved(); }
+function loadSaved(i) { if (i < 0 || i >= saved.length) return; pendingFirst = {}; path = JSON.parse(JSON.stringify(saved[i].path)); activeSavedIdx = i; render(); }
+function deleteSaved(e, i) { e.stopPropagation(); saved.splice(i, 1); if (activeSavedIdx === i) activeSavedIdx = -1; else if (activeSavedIdx > i) activeSavedIdx--; persistSaved(); renderSaved(); }
+function persistSaved() { try { sessionStorage.setItem(SAVED_KEY, JSON.stringify(saved)); } catch(e) {} }
+function loadSavedFromSession() { try { const raw = sessionStorage.getItem(SAVED_KEY); if (raw) saved = JSON.parse(raw); } catch(e) { saved = []; } }
+function render() { renderSaved(); renderPath(); renderBoard(); renderToolbar(); renderHistogram(); renderStrategyCompare(); renderBottlenecks(); populateWinrateWidget(); if (matrixVisible) renderMatrix(); }
+function renderToolbar() {
+  const g = computeGuarantee(); const meets = g !== null && g >= R.threshold; const acc = totalAccumulated(); const delta = path.length ? computeOptDelta() : null;
+  document.getElementById('title').textContent = path.length ? 'Текущая линия' : 'Выберите старт';
+  let html = '';
+  if (g !== null) { html += `<b class="${meets?'pos':'neg'}" style="font-size:13px;margin-right:5px">${meets?'✓':'✗'}</b><b class="${meets?'pos':'neg'}">${fmt(g)}</b> / ${R.threshold}`; } else { html += `<span style="color:#6a7280">гарантия —</span> / ${R.threshold}`; }
+  html += ` &nbsp;·&nbsp; набрано <b>${fmt(acc)}</b>`;
+  if (delta !== null) { let dcls = '', dtxt; if (Math.abs(delta) < 0.05) { dcls = 'pos'; dtxt = 'Δ 0.0 (оптимум)'; } else if (delta > 0) { dcls = 'pos'; dtxt = `Δ +${fmt(delta)}`; } else { dcls = 'neg'; dtxt = `Δ ${fmt(delta)}`; } html += ` &nbsp;·&nbsp; <b class="${dcls}">${dtxt}</b>`; }
+  if (manualMode) html += ` &nbsp;·&nbsp; <b style="color:#a080ff">ручной</b>`;
+  document.getElementById('summary').innerHTML = html;
+  document.getElementById('saveBtn').disabled = !path.length;
+  const inp = document.getElementById('stepInput'); inp.max = Math.max(1, path.length); if (parseInt(inp.value, 10) > inp.max) inp.value = inp.max;
+}
+function renderSaved() {
+  const el = document.getElementById('saved'); el.innerHTML = '';
+  if (!saved.length) { el.innerHTML = '<div class="empty-hint">Пока ничего не сохранено.<br>Выберите линию и нажмите 💾</div>'; return; }
+  saved.forEach((s, i) => { const d = document.createElement('div'); d.className = 'saved-item' + (i === activeSavedIdx ? ' active' : ''); const meets = s.value >= R.threshold; d.innerHTML = `<div class="saved-name">${s.name}</div><div class="saved-meta ${meets?'pos':'neg'}">гарантия ≥ ${fmt(s.value)}</div><button class="del" title="Удалить">×</button>`; d.onclick = () => loadSaved(i); d.querySelector('.del').onclick = ev => deleteSaved(ev, i); el.appendChild(d); });
+}
+function buildMetricsBadges(stats) {
+  if (!stats) return ''; const parts = [];
+  if (METRICS.min) { const ok = stats.min >= R.threshold; parts.push(`<span class="badge ${ok?'pos':'neg'}" title="Гарантированный минимум"><span class="k">min</span>${fmt(stats.min)}</span>`); }
+  if (METRICS.max) parts.push(`<span class="badge max" title="Максимум"><span class="k">max</span>${fmt(stats.max)}</span>`);
+  if (METRICS.avg) parts.push(`<span class="badge avg" title="Среднее"><span class="k">avg</span>${fmt(stats.avg)}</span>`);
+  if (METRICS.std) parts.push(`<span class="badge std" title="Стд. отклонение"><span class="k">σ</span>${fmt(stats.std)}</span>`);
+  if (METRICS.freq) { const m = Math.round(stats.min); const freq = (stats.hist[m] || 0) / stats.count * 100; parts.push(`<span class="badge freq" title="Частота минимума"><span class="k">min%</span>${freq.toFixed(0)}%</span>`); }
+  return `<div class="metrics">${parts.join('')}</div>`;
+}
+function renderPath() {
+  const el = document.getElementById('path'); el.innerHTML = ''; const entries = [];
+  if (!path.length) entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
+  else {
+    path.forEach((st, i) => entries.push({kind: 'confirmed', st, i, idx: i + 1}));
+    if (manualMode) { const last = path[path.length - 1]; const childId = N(last.nodeId).o[last.optIdx].c; if (childId !== -1 && childId !== null) entries.push({kind: 'pending', nodeId: childId, idx: path.length + 1}); }
+  }
+  const groups = [];
+  entries.forEach(e => { const nodeId = e.kind === 'confirmed' ? e.st.nodeId : e.nodeId; const c = N(nodeId).c; if (!groups.length || groups[groups.length-1].cycle !== c) groups.push({cycle: c, items: []}); groups[groups.length-1].items.push(e); });
+  groups.forEach(g => el.appendChild(renderCycleGroup(g)));
+}
+function renderCycleGroup(g) {
+  const wrap = document.createElement('div'); wrap.className = 'cycle-group';
+  const hasConfirmed = g.items.some(x => x.kind === 'confirmed');
+  if (collapsedCycles[g.cycle] && hasConfirmed) { const bar = document.createElement('div'); bar.className = 'cycle-collapsed'; bar.innerHTML = buildCycleSummary(g); bar.onclick = () => { collapsedCycles[g.cycle] = false; renderPath(); }; wrap.appendChild(bar); return wrap; }
+  const head = document.createElement('div'); head.className = 'cycle-header'; head.innerHTML = `<span class="toggle">▼</span> Цикл ${g.cycle}`; head.onclick = () => { collapsedCycles[g.cycle] = true; renderPath(); }; wrap.appendChild(head);
+  g.items.forEach(e => { if (e.kind === 'confirmed') wrap.appendChild(renderStep(e.st, e.i, e.idx)); else wrap.appendChild(renderPendingStep(e.nodeId, e.idx)); });
+  return wrap;
+}
+function buildCycleSummary(g) {
+  const pairs = []; let points = 0;
+  for (const {st} of g.items.filter(x => x.kind === 'confirmed')) { const node = N(st.nodeId); const o = node.o[st.optIdx]; points += o.d; if (o.p) pairs.push(...o.p); }
+  const pairsStr = pairs.map(p => { const [our, en, , score] = p; return `<span class="mini-pair">${our}<i>vs</i>${en}<b>${fmt(score)}</b></span>`; }).join('');
+  const sign = points >= 0 ? '+' : '';
+  return `<span class="toggle">▶</span> <b>Цикл ${g.cycle}</b> ${pairsStr} <span class="cycle-pts">${sign}${fmt(points)}</span>`;
+}
+function renderStep(st, i, idx) {
+  const node = N(st.nodeId); const accBefore = accumulatedBefore(i); const cs = cumStats(st.nodeId, st.optIdx, accBefore); const isDeviation = !node.o[st.optIdx].op;
+  const step = document.createElement('div'); step.className = 'step ' + (node.k === 0 ? 'our' : 'enemy'); step.id = 'step-' + i; if (isDeviation) step.classList.add('dev');
+  const head = document.createElement('div'); head.className = 'step-head';
+  head.innerHTML = `<span class="lbl">${node.l}<span class="step-idx">Шаг ${idx}</span></span><div style="display:flex;align-items:center;gap:6px">${buildMetricsBadges(cs)}<button class="cross-btn" title="Отменить выбор на этом шаге и скрыть все шаги ниже">×</button></div>`;
+  head.querySelector('.cross-btn').onclick = () => crossStep(i); step.appendChild(head);
+  step.appendChild(isOffer(node.ph) ? renderOfferPlaques(st.nodeId, node, accBefore, st.optIdx) : renderSimplePlaques(st.nodeId, node, accBefore, st.optIdx));
+  return step;
+}
+function renderPendingStep(nodeId, idx) {
+  const node = N(nodeId); const acc = totalAccumulated(); const raw = nodeStats(nodeId);
+  const stats = { min: raw.min + acc, max: raw.max + acc, avg: raw.avg + acc, std: raw.std, hist: Object.fromEntries(Object.entries(raw.hist).map(([k, v]) => [Math.round(Number(k) + acc), v])), count: raw.count };
+  const step = document.createElement('div'); step.className = 'step pending ' + (node.k === 0 ? 'our' : 'enemy');
+  step.innerHTML = `<div class="step-head"><span class="lbl">${node.l}<span class="step-idx">Шаг ${idx}</span><span class="pending-mark">— выберите ход</span></span>${buildMetricsBadges(stats)}</div>`;
+  step.appendChild(isOffer(node.ph) ? renderOfferPlaques(nodeId, node, acc, -1) : renderSimplePlaques(nodeId, node, acc, -1));
+  return step;
+}
+function renderSimplePlaques(nodeId, node, accBefore, chosenIdx) {
+  const opts = document.createElement('div'); opts.className = 'opts';
+  node.o.forEach((o, oi) => {
+    const oel = document.createElement('div'); oel.className = 'opt';
+    if (chosenIdx != null && oi === chosenIdx) oel.classList.add('chosen');
+    if (o.op) oel.classList.add('optimal');
+    const cs = cumStats(nodeId, oi, accBefore); const meetsOpt = cs.min >= R.threshold;
+    oel.innerHTML = `${o.a}<span class="d">${fmt(cs.min)}${meetsOpt?' ✓':''}</span>`; oel.onclick = () => clickOption(nodeId, oi); opts.appendChild(oel);
+  });
+  return opts;
+}
+function renderOfferPlaques(nodeId, node, accBefore, chosenIdx) {
+  const factions = new Set(); node.o.forEach(o => o.a.split(' + ').forEach(f => factions.add(f)));
+  const wrap = document.createElement('div'); wrap.className = 'opts';
+  factions.forEach(f => { const oel = document.createElement('div'); oel.className = 'opt'; oel.dataset.faction = f; oel.textContent = f; wrap.appendChild(oel); });
+  updateOfferPlaques(wrap, nodeId, node, accBefore, chosenIdx);
+  wrap.addEventListener('click', e => { const t = e.target.closest('.opt'); if (!t || !t.dataset.faction) return; handleOfferClick(nodeId, t.dataset.faction); });
+  return wrap;
+}
+function updateOfferPlaques(wrap, nodeId, node, accBefore, chosenIdx) {
+  const first = pendingFirst[nodeId] || null; const committedOpt = (chosenIdx != null && chosenIdx >= 0) ? node.o[chosenIdx] : null; const committedSet = committedOpt ? new Set(committedOpt.a.split(' + ')) : new Set(); const committedStats = committedOpt ? cumStats(nodeId, chosenIdx, accBefore) : null; const committedMeets = committedStats ? committedStats.min >= R.threshold : false;
+  wrap.querySelectorAll('.opt').forEach(oel => {
+    const f = oel.dataset.faction; oel.className = 'opt'; oel.textContent = f;
+    if (first === f) { oel.classList.add('picked'); return; }
+    if (committedSet.has(f)) { oel.classList.add('chosen'); const sp = document.createElement('span'); sp.className = 'd'; sp.textContent = `${fmt(committedStats.min)}${committedMeets?' ✓':''}`; oel.appendChild(sp); return; }
+    let bestStat = null;
+    node.o.forEach((o, oi) => { const parts = o.a.split(' + '); if (parts.length !== 2) return; if (!parts.includes(f)) return; if (first && !parts.includes(first)) return; const cs = cumStats(nodeId, oi, accBefore); if (!bestStat || cs.min > bestStat.min) bestStat = cs; });
+    if (bestStat) { const sp = document.createElement('span'); sp.className = 'd'; const ok = bestStat.min >= R.threshold; sp.textContent = `${fmt(bestStat.min)}${ok?' ✓':''}`; oel.appendChild(sp); }
+  });
+}
+function accumulatedBefore(idx) { let s = 0; for (let i = 0; i < idx; i++) s += N(path[i].nodeId).o[path[i].optIdx].d; return s; }
+function totalAccumulated() { let s = 0; for (const st of path) s += N(st.nodeId).o[st.optIdx].d; return s; }
+function collectPairsWithIdx() { const out = []; path.forEach((st, i) => { const o = N(st.nodeId).o[st.optIdx]; if (o.p) for (const p of o.p) out.push({pair: p, stepIdx: i}); }); return out; }
+function renderBoard() {
+  const items = collectPairsWithIdx(); const el = document.getElementById('pairs'); el.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const row = document.createElement('div'); row.className = 'pair' + (i >= items.length ? ' empty' : '');
+    if (i < items.length) {
+      const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; const sCls = score >= 12 ? 'pos' : score > 10 ? 'mid' : 'neg';
+      if (score <= 10) row.classList.add('bottleneck');
+      const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
+      row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
+      row.onclick = () => scrollToStep(stepIdx); row.style.cursor = 'pointer';
+    } else { row.innerHTML = `<div class="cell ours">—</div><div class="vs">vs</div><div class="cell theirs">—</div><div class="sc mid">—</div><div class="wr na">—</div>`; }
+    el.appendChild(row);
+  }
+  const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= R.threshold;
+  document.getElementById('totals').innerHTML = `<div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div><div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div><div class="bar"><div style="width:${Math.min(100, g/1.2)}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
+}
+function scrollToStep(i) { const el = document.getElementById('step-' + i); if (!el) return; el.scrollIntoView({behavior:'smooth', block:'center'}); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 900); }
+function currentLineStats() { if (!path.length) return nodeStats(R.root_id); const i = path.length - 1; const accBefore = accumulatedBefore(i); return cumStats(path[i].nodeId, path[i].optIdx, accBefore); }
+function renderHistogram() {
+  const el = document.getElementById('histChart'); const legendEl = document.getElementById('histLegend'); const stats = currentLineStats(); const hist = stats.hist; const buckets = [];
+  for (let v = 0; v <= 120; v += 2) buckets.push(hist[v] || 0);
+  const peak = Math.max(...buckets, 1);
+  const bars = buckets.map((c, bi) => { const v = bi * 2; const h = c === 0 ? 0 : Math.max(2, Math.round(c / peak * 62)); let cls = 'hb'; if (v < R.threshold) cls += ' low'; else if (v < R.threshold + 10) cls += ' mid'; else if (v < R.threshold + 25) cls += ' high'; else cls += ' best'; return `<div class="${cls}" style="height:${h}px" title="${v} очков: ${c} путей"></div>`; }).join('');
+  const thresholdPct = Math.max(0, Math.min(100, (R.threshold / 120) * 100));
+  el.innerHTML = `<div class="hist-bars">${bars}<div class="hist-threshold" style="left:${thresholdPct}%"></div></div><div class="hist-axis"><span>0</span><span>30</span><span>60</span><span>90</span><span>120</span></div>`;
+  const sorted = []; for (const k in hist) { const v = Number(k); for (let i=0;i<hist[k];i++) sorted.push(v); } sorted.sort((a,b)=>a-b);
+  const q = p => sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(p*sorted.length))] : null;
+  const p10 = q(.10), p50 = q(.50), p90 = q(.90); const minPct = (hist[Math.round(stats.min)] || 0) / stats.count * 100;
+  legendEl.innerHTML = `<span title="Путей">путей: <b>${stats.count}</b></span><span title="10-й процентиль">p10: <b>${fmt(p10)}</b></span><span title="Медиана">p50: <b>${fmt(p50)}</b></span><span title="90-й процентиль">p90: <b>${fmt(p90)}</b></span><span class="hn" title="Минимально возможный итог">мин ${fmt(stats.min)} (${minPct.toFixed(0)}%)</span><span class="hl" title="Максимально возможный итог">макс ${fmt(stats.max)}</span><span title="Стд">σ <b>${fmt(stats.std)}</b></span>`;
+}
+function renderStrategyCompare() {
+  const el = document.getElementById('stratCompare'); if (!el) return; const root = N(R.root_id); const rows = [];
+  root.o.forEach((o, oi) => { const stats = cumStats(R.root_id, oi, 0); rows.push({ name: o.a, oi, min: stats.min, avg: stats.avg, max: stats.max, std: stats.std, minPct: (stats.hist[Math.round(stats.min)] || 0) / stats.count * 100 }); });
+  rows.sort((a, b) => b.min - a.min); const curD1 = path.length ? N(path[0].nodeId).o[path[0].optIdx].a : null;
+  let html = `<table class="strat-table"><thead><tr><th title="Первый дефендер">D1</th><th title="Гарантия">min</th><th title="Среднее">avg</th><th title="Максимум">max</th><th title="Отклонение">σ</th><th title="Доля попаданий в минимум">min%</th></tr></thead><tbody>`;
+  rows.forEach(r => { const cls = r.min >= R.threshold ? 'pos' : 'neg'; const active = (curD1 === r.name) ? ' style="background:#2a3040"' : ''; html += `<tr${active} title="Клик — выбрать"><td class="strat-name">${r.name}</td><td class="num ${cls}">${fmt(r.min)}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.max)}</td><td class="num">${fmt(r.std)}</td><td class="num">${r.minPct.toFixed(0)}%</td></tr>`; });
+  html += '</tbody></table>'; el.innerHTML = html;
+  el.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const name = tr.querySelector('.strat-name').textContent; const oi = root.o.findIndex(o => o.a === name); if (oi >= 0) clickOption(R.root_id, oi); }; });
+}
+function renderBottlenecks() {
+  const el = document.getElementById('bottlenecks'); if (!el) return; const items = collectPairsWithIdx(); if (!items.length) { el.innerHTML = '<div class="empty-hint">Выберите хотя бы одно действие</div>'; return; }
+  const sorted = [...items].sort((a, b) => a.pair[3] - b.pair[3]); let html = '<div class="bn-list">';
+  sorted.forEach(({pair, stepIdx}) => { const [our, en, , score] = pair; const wr = getWinRate(our, en); const wrTag = wr !== null ? ` · <span style="color:${wr>=55?'#6cd88a':wr<=45?'#ff8080':'#c0c6d0'}">WR ${wr.toFixed(1)}%</span>` : ''; const cls = score >= 12 ? 'good' : score > 10 ? 'mid' : 'bad'; const tag = score <= 10 ? ' ← узкое место' : ''; html += `<div class="bn-row ${cls}" data-step-idx="${stepIdx}" title="Пара ${our} vs ${en}: ${fmt(score)}"><span class="bn-pair">${our} <i>vs</i> ${en}${wrTag}</span><span class="bn-score">${fmt(score)}${tag}</span></div>`; });
+  html += '</div>'; el.innerHTML = html;
+  el.querySelectorAll('.bn-row').forEach(row => { row.onclick = () => scrollToStep(Number(row.dataset.stepIdx)); });
 }
 
-function toggleHelp() {
-  const el = document.getElementById('helpBox');
-  const on = el.style.display === 'none';
-  el.style.display = on ? 'block' : 'none';
-  document.getElementById('helpBtn').classList.toggle('toggle-on', on);
-}
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('on');
-  clearTimeout(toast._tm);
-  toast._tm = setTimeout(() => t.classList.remove('on'), 1200);
+/* ================================================================
+ * ЛОГИКА МОДАЛЬНОГО ОКНА И ЗАГРУЗКИ
+ * ================================================================ */
+function openGenModal() { document.getElementById('genModal').classList.add('active'); }
+function closeGenModal() { document.getElementById('genModal').classList.remove('active'); }
+function toggleFormatSelect() {
+  const formatSelect = document.getElementById('format');
+  const size = parseInt(document.getElementById('tsize').value);
+  if (size === 3 || size === 5) { formatSelect.value = 'champ_champ'; formatSelect.disabled = true; formatSelect.style.opacity = '0.5'; }
+  else { formatSelect.disabled = false; formatSelect.style.opacity = '1'; if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref'; }
 }
 
-/* ---------- upload / download ---------- */
-function downloadJson() {
-  if (!R) return;
-  const dataStr = JSON.stringify(R, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `pairings_${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+async function fetchSheets() {
+  const url = document.getElementById('gurl').value;
+  if (!url) return alert('Введите ссылку');
+  const st = document.getElementById('genStatus');
+  st.innerText = 'Загрузка листов...';
+  try {
+    const res = await fetch('/api/sheets', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url}) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    const sel = document.getElementById('sheet');
+    sel.innerHTML = data.sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+    sel.disabled = false;
+    st.innerText = 'Листы загружены.';
+  } catch(e) { st.innerText = 'Ошибка: ' + e.message; }
 }
 
-function handleFileUpload(e) {
-  if (e.target.files.length > 0) loadFile(e.target.files[0]);
-  e.target.value = '';
+async function doGenerate() {
+  const url = document.getElementById('gurl').value;
+  const sheet_name = document.getElementById('sheet').value;
+  const team_size = parseInt(document.getElementById('tsize').value);
+  const format_type = document.getElementById('format').value;
+  const scale = parseInt(document.getElementById('scale').value);
+  
+  if (!url || !sheet_name) return alert('Заполните все поля');
+  const st = document.getElementById('genStatus');
+  st.innerText = 'Генерация (10-30 сек)...';
+  
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, sheet_name, team_size, format_type, scale})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    
+    // Сохраняем в Firebase
+    while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
+    await window.FirebaseAPI.save(data);
+    
+    // Обновляем текущий экран
+    R = data;
+    if (R.winrates) WINRATES = R.winrates;
+    bestFromStart();
+    closeGenModal();
+    toast('Паринги сгенерированы и сохранены в облако!');
+  } catch(e) {
+    st.innerText = 'Ошибка: ' + e.message;
+  }
 }
 
-function loadFile(file) {
+// Modal Drag and Drop
+const dropZoneModal = document.getElementById('dropZoneModal');
+const fileInputModal = document.getElementById('fileInputModal');
+dropZoneModal.addEventListener('click', () => fileInputModal.click());
+dropZoneModal.addEventListener('dragover', (e) => { e.preventDefault(); dropZoneModal.classList.add('dragover'); });
+dropZoneModal.addEventListener('dragleave', () => dropZoneModal.classList.remove('dragover'));
+dropZoneModal.addEventListener('drop', (e) => {
+  e.preventDefault(); dropZoneModal.classList.remove('dragover');
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFileModal(e.dataTransfer.files[0]);
+});
+fileInputModal.addEventListener('change', (e) => { if (e.target.files.length > 0) handleFileModal(e.target.files[0]); e.target.value = ''; });
+
+async function handleFileModal(file) {
   if (!file.name.endsWith('.json')) return alert('Выберите файл .json');
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!data.nodes || !data.root_id) throw new Error('Неверный формат файла парингов');
+      if (typeof data !== 'object' || data === null || !data.nodes) throw new Error('В файле нет поля "nodes"');
+      
+      while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
+      await window.FirebaseAPI.save(data);
+      
       R = data;
       if (R.winrates) WINRATES = R.winrates;
-      else loadWinRates(); // try local fallback if not embedded
       bestFromStart();
-      toast('JSON успешно загружен');
-    } catch(err) {
-      alert('Ошибка: ' + err.message);
-    }
+      closeGenModal();
+      toast('JSON загружен и сохранен в облако!');
+    } catch(err) { alert('Ошибка: ' + err.message); }
   };
   reader.readAsText(file);
 }
 
-// Global drag and drop
+// Global Drop (если перетащить файл просто на страницу)
 const overlay = document.getElementById('dropOverlay');
 let dragCounter = 0;
-
-window.addEventListener('dragenter', (e) => {
-  e.preventDefault();
-  dragCounter++;
-  if (dragCounter === 1) overlay.classList.add('active');
-});
-window.addEventListener('dragleave', (e) => {
-  e.preventDefault();
-  dragCounter--;
-  if (dragCounter === 0) overlay.classList.remove('active');
-});
+window.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; if (dragCounter === 1) overlay.classList.add('active'); });
+window.addEventListener('dragleave', (e) => { e.preventDefault(); dragCounter--; if (dragCounter === 0) overlay.classList.remove('active'); });
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dragCounter = 0;
-  overlay.classList.remove('active');
-  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    loadFile(e.dataTransfer.files[0]);
-  }
+  e.preventDefault(); dragCounter = 0; overlay.classList.remove('active');
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFileModal(e.dataTransfer.files[0]);
 });
-
-/* ---------- copy summary ---------- */
-function copySummary() {
-  if (!path.length) { toast('Линия пуста'); return; }
-  const g = computeGuarantee();
-  const pairs = collectPairsWithIdx().map(e => e.pair);
-  let txt = `Гарантия: ${fmt(g)} (порог ${R.threshold})\nПары:\n`;
-  pairs.forEach(p => {
-    const wr = getWinRate(p[0], p[1]);
-    const wrTxt = wr !== null ? ` [WR ${wr.toFixed(1)}%]` : '';
-    txt += `  ${p[0]} vs ${p[1]} — ${fmt(p[3])}${wrTxt}\n`;
-  });
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(
-      () => toast('Скопировано'),
-      () => { window.prompt('Скопируйте:', txt); }
-    );
-  } else {
-    window.prompt('Скопируйте:', txt);
-  }
-}
-
-function computeGuarantee() {
-  if (!path.length) return null;
-  const last = path[path.length-1];
-  const accBefore = accumulatedBefore(path.length-1);
-  return cumStats(last.nodeId, last.optIdx, accBefore).min;
-}
-function computeOptDelta() {
-  if (!path.length) return 0;
-  const root = N(R.root_id);
-  const optIdx = bestIdx(root);
-  if (optIdx === null) return 0;
-  const optMin = cumStats(R.root_id, optIdx, 0).min;
-  const cur = computeGuarantee();
-  return cur - optMin;
-}
-function saveCurrent() {
-  if (!path.length) return;
-  const v = computeGuarantee();
-  const d1Opt = N(path[0].nodeId).o[path[0].optIdx];
-  saved.push({ name: `${d1Opt.a} (${path.length} шагов)`, value: v,
-               path: JSON.parse(JSON.stringify(path)) });
-  persistSaved(); renderSaved();
-}
-function loadSaved(i) {
-  if (i < 0 || i >= saved.length) return;
-  pendingFirst = {};
-  path = JSON.parse(JSON.stringify(saved[i].path));
-  activeSavedIdx = i; render();
-}
-function deleteSaved(e, i) {
-  e.stopPropagation();
-  saved.splice(i, 1);
-  if (activeSavedIdx === i) activeSavedIdx = -1;
-  else if (activeSavedIdx > i) activeSavedIdx--;
-  persistSaved(); renderSaved();
-}
-function persistSaved() {
-  try { sessionStorage.setItem(SAVED_KEY, JSON.stringify(saved)); } catch(e) {}
-}
-function loadSavedFromSession() {
-  try {
-    const raw = sessionStorage.getItem(SAVED_KEY);
-    if (raw) saved = JSON.parse(raw);
-  } catch(e) { saved = []; }
-}
-
-function render() {
-  renderSaved(); renderPath(); renderBoard(); renderToolbar();
-  renderHistogram(); renderStrategyCompare(); renderBottlenecks();
-  populateWinrateWidget();
-  if (matrixVisible) renderMatrix();
-}
-
-function renderToolbar() {
-  const g = computeGuarantee();
-  const meets = g !== null && g >= R.threshold;
-  const acc = totalAccumulated();
-  const delta = path.length ? computeOptDelta() : null;
-
-  document.getElementById('title').textContent = path.length ? 'Текущая линия' : 'Выберите старт';
-
-  let html = '';
-  if (g !== null) {
-    html += `<b class="${meets?'pos':'neg'}" style="font-size:13px;margin-right:5px">${meets?'✓':'✗'}</b>`;
-    html += `<b class="${meets?'pos':'neg'}">${fmt(g)}</b> / ${R.threshold}`;
-  } else {
-    html += `<span style="color:#6a7280">гарантия —</span> / ${R.threshold}`;
-  }
-  html += ` &nbsp;·&nbsp; набрано <b>${fmt(acc)}</b>`;
-  if (delta !== null) {
-    let dcls = '', dtxt;
-    if (Math.abs(delta) < 0.05) { dcls = 'pos'; dtxt = 'Δ 0.0 (оптимум)'; }
-    else if (delta > 0) { dcls = 'pos'; dtxt = `Δ +${fmt(delta)}`; }
-    else { dcls = 'neg'; dtxt = `Δ ${fmt(delta)}`; }
-    html += ` &nbsp;·&nbsp; <b class="${dcls}">${dtxt}</b>`;
-  }
-  if (manualMode) html += ` &nbsp;·&nbsp; <b style="color:#a080ff">ручной</b>`;
-  document.getElementById('summary').innerHTML = html;
-
-  document.getElementById('saveBtn').disabled = !path.length;
-  const inp = document.getElementById('stepInput');
-  inp.max = Math.max(1, path.length);
-  if (parseInt(inp.value, 10) > inp.max) inp.value = inp.max;
-}
-
-function renderSaved() {
-  const el = document.getElementById('saved');
-  el.innerHTML = '';
-  if (!saved.length) {
-    el.innerHTML = '<div class="empty-hint">Пока ничего не сохранено.<br>Выберите линию и нажмите 💾</div>';
-    return;
-  }
-  saved.forEach((s, i) => {
-    const d = document.createElement('div');
-    d.className = 'saved-item' + (i === activeSavedIdx ? ' active' : '');
-    const meets = s.value >= R.threshold;
-    d.innerHTML = `
-      <div class="saved-name">${s.name}</div>
-      <div class="saved-meta ${meets?'pos':'neg'}">гарантия ≥ ${fmt(s.value)}</div>
-      <button class="del" title="Удалить">×</button>`;
-    d.onclick = () => loadSaved(i);
-    d.querySelector('.del').onclick = ev => deleteSaved(ev, i);
-    el.appendChild(d);
-  });
-}
-
-function buildMetricsBadges(stats) {
-  if (!stats) return '';
-  const parts = [];
-  if (METRICS.min) {
-    const ok = stats.min >= R.threshold;
-    parts.push(`<span class="badge ${ok?'pos':'neg'}" title="Гарантированный минимум при худшем ответе оппонента"><span class="k">min</span>${fmt(stats.min)}</span>`);
-  }
-  if (METRICS.max) parts.push(`<span class="badge max" title="Максимум при самом удобном ответе оппонента"><span class="k">max</span>${fmt(stats.max)}</span>`);
-  if (METRICS.avg) parts.push(`<span class="badge avg" title="Среднее по всем ответам оппонента"><span class="k">avg</span>${fmt(stats.avg)}</span>`);
-  if (METRICS.std) parts.push(`<span class="badge std" title="Стандартное отклонение"><span class="k">σ</span>${fmt(stats.std)}</span>`);
-  if (METRICS.freq) {
-    const m = Math.round(stats.min);
-    const freq = (stats.hist[m] || 0) / stats.count * 100;
-    parts.push(`<span class="badge freq" title="Доля ответов оппонента, при которых получим минимум"><span class="k">min%</span>${freq.toFixed(0)}%</span>`);
-  }
-  return `<div class="metrics">${parts.join('')}</div>`;
-}
-
-function renderPath() {
-  const el = document.getElementById('path');
-  el.innerHTML = '';
-  const entries = [];
-  if (!path.length) {
-    entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
-  } else {
-    path.forEach((st, i) => entries.push({kind: 'confirmed', st, i, idx: i + 1}));
-    if (manualMode) {
-      const last = path[path.length - 1];
-      const childId = N(last.nodeId).o[last.optIdx].c;
-      if (childId !== -1 && childId !== null) {
-        entries.push({kind: 'pending', nodeId: childId, idx: path.length + 1});
-      }
-    }
-  }
-  const groups = [];
-  entries.forEach(e => {
-    const nodeId = e.kind === 'confirmed' ? e.st.nodeId : e.nodeId;
-    const c = N(nodeId).c;
-    if (!groups.length || groups[groups.length-1].cycle !== c)
-      groups.push({cycle: c, items: []});
-    groups[groups.length-1].items.push(e);
-  });
-  groups.forEach(g => el.appendChild(renderCycleGroup(g)));
-}
-
-function renderCycleGroup(g) {
-  const wrap = document.createElement('div');
-  wrap.className = 'cycle-group';
-  const hasConfirmed = g.items.some(x => x.kind === 'confirmed');
-  if (collapsedCycles[g.cycle] && hasConfirmed) {
-    const bar = document.createElement('div');
-    bar.className = 'cycle-collapsed';
-    bar.innerHTML = buildCycleSummary(g);
-    bar.onclick = () => { collapsedCycles[g.cycle] = false; renderPath(); };
-    wrap.appendChild(bar);
-    return wrap;
-  }
-  const head = document.createElement('div');
-  head.className = 'cycle-header';
-  head.innerHTML = `<span class="toggle">▼</span> Цикл ${g.cycle}`;
-  head.onclick = () => { collapsedCycles[g.cycle] = true; renderPath(); };
-  wrap.appendChild(head);
-  g.items.forEach(e => {
-    if (e.kind === 'confirmed') wrap.appendChild(renderStep(e.st, e.i, e.idx));
-    else wrap.appendChild(renderPendingStep(e.nodeId, e.idx));
-  });
-  return wrap;
-}
-
-function buildCycleSummary(g) {
-  const pairs = [];
-  let points = 0;
-  for (const {st} of g.items.filter(x => x.kind === 'confirmed')) {
-    const node = N(st.nodeId);
-    const o = node.o[st.optIdx];
-    points += o.d;
-    if (o.p) pairs.push(...o.p);
-  }
-  const pairsStr = pairs.map(p => {
-    const [our, en, , score] = p;
-    return `<span class="mini-pair">${our}<i>vs</i>${en}<b>${fmt(score)}</b></span>`;
-  }).join('');
-  const sign = points >= 0 ? '+' : '';
-  return `<span class="toggle">▶</span> <b>Цикл ${g.cycle}</b> ${pairsStr}
-          <span class="cycle-pts">${sign}${fmt(points)}</span>`;
-}
-
-function renderStep(st, i, idx) {
-  const node = N(st.nodeId);
-  const accBefore = accumulatedBefore(i);
-  const cs = cumStats(st.nodeId, st.optIdx, accBefore);
-  const isDeviation = !node.o[st.optIdx].op;
-
-  const step = document.createElement('div');
-  step.className = 'step ' + (node.k === 0 ? 'our' : 'enemy');
-  step.id = 'step-' + i;
-  if (isDeviation) step.classList.add('dev');
-
-  const head = document.createElement('div');
-  head.className = 'step-head';
-  head.innerHTML = `<span class="lbl">${node.l}<span class="step-idx">Шаг ${idx}</span></span>
-    <div style="display:flex;align-items:center;gap:6px">
-      ${buildMetricsBadges(cs)}
-      <button class="cross-btn" title="Отменить выбор на этом шаге и скрыть все шаги ниже">×</button>
-    </div>`;
-  head.querySelector('.cross-btn').onclick = () => crossStep(i);
-  step.appendChild(head);
-
-  step.appendChild(isOffer(node.ph)
-    ? renderOfferPlaques(st.nodeId, node, accBefore, st.optIdx)
-    : renderSimplePlaques(st.nodeId, node, accBefore, st.optIdx));
-  return step;
-}
-
-function renderPendingStep(nodeId, idx) {
-  const node = N(nodeId);
-  const acc = totalAccumulated();
-  const raw = nodeStats(nodeId);
-  const stats = {
-    min: raw.min + acc, max: raw.max + acc, avg: raw.avg + acc, std: raw.std,
-    hist: Object.fromEntries(Object.entries(raw.hist).map(([k, v]) => [Math.round(Number(k) + acc), v])),
-    count: raw.count,
-  };
-  const step = document.createElement('div');
-  step.className = 'step pending ' + (node.k === 0 ? 'our' : 'enemy');
-  step.innerHTML = `<div class="step-head">
-      <span class="lbl">${node.l}<span class="step-idx">Шаг ${idx}</span>
-        <span class="pending-mark">— выберите ход</span></span>
-      ${buildMetricsBadges(stats)}</div>`;
-  step.appendChild(isOffer(node.ph)
-    ? renderOfferPlaques(nodeId, node, acc, -1)
-    : renderSimplePlaques(nodeId, node, acc, -1));
-  return step;
-}
-
-function renderSimplePlaques(nodeId, node, accBefore, chosenIdx) {
-  const opts = document.createElement('div');
-  opts.className = 'opts';
-  node.o.forEach((o, oi) => {
-    const oel = document.createElement('div');
-    oel.className = 'opt';
-    if (chosenIdx != null && oi === chosenIdx) oel.classList.add('chosen');
-    if (o.op) oel.classList.add('optimal');
-    const cs = cumStats(nodeId, oi, accBefore);
-    const meetsOpt = cs.min >= R.threshold;
-    oel.innerHTML = `${o.a}<span class="d">${fmt(cs.min)}${meetsOpt?' ✓':''}</span>`;
-    oel.onclick = () => clickOption(nodeId, oi);
-    opts.appendChild(oel);
-  });
-  return opts;
-}
-
-function renderOfferPlaques(nodeId, node, accBefore, chosenIdx) {
-  const factions = new Set();
-  node.o.forEach(o => o.a.split(' + ').forEach(f => factions.add(f)));
-  const wrap = document.createElement('div');
-  wrap.className = 'opts';
-  factions.forEach(f => {
-    const oel = document.createElement('div');
-    oel.className = 'opt';
-    oel.dataset.faction = f;
-    oel.textContent = f;
-    wrap.appendChild(oel);
-  });
-  updateOfferPlaques(wrap, nodeId, node, accBefore, chosenIdx);
-  wrap.addEventListener('click', e => {
-    const t = e.target.closest('.opt');
-    if (!t || !t.dataset.faction) return;
-    handleOfferClick(nodeId, t.dataset.faction);
-  });
-  return wrap;
-}
-
-function updateOfferPlaques(wrap, nodeId, node, accBefore, chosenIdx) {
-  const first = pendingFirst[nodeId] || null;
-  const committedOpt = (chosenIdx != null && chosenIdx >= 0) ? node.o[chosenIdx] : null;
-  const committedSet = committedOpt ? new Set(committedOpt.a.split(' + ')) : new Set();
-  const committedStats = committedOpt ? cumStats(nodeId, chosenIdx, accBefore) : null;
-  const committedMeets = committedStats ? committedStats.min >= R.threshold : false;
-
-  wrap.querySelectorAll('.opt').forEach(oel => {
-    const f = oel.dataset.faction;
-    oel.className = 'opt';
-    oel.textContent = f;
-
-    if (first === f) { oel.classList.add('picked'); return; }
-
-    if (committedSet.has(f)) {
-      oel.classList.add('chosen');
-      const sp = document.createElement('span');
-      sp.className = 'd';
-      sp.textContent = `${fmt(committedStats.min)}${committedMeets?' ✓':''}`;
-      oel.appendChild(sp);
-      return;
-    }
-
-    let bestStat = null;
-    node.o.forEach((o, oi) => {
-      const parts = o.a.split(' + ');
-      if (parts.length !== 2) return;
-      if (!parts.includes(f)) return;
-      if (first && !parts.includes(first)) return;
-      const cs = cumStats(nodeId, oi, accBefore);
-      if (!bestStat || cs.min > bestStat.min) bestStat = cs;
-    });
-    if (bestStat) {
-      const sp = document.createElement('span');
-      sp.className = 'd';
-      const ok = bestStat.min >= R.threshold;
-      sp.textContent = `${fmt(bestStat.min)}${ok?' ✓':''}`;
-      oel.appendChild(sp);
-    }
-  });
-}
-
-function accumulatedBefore(idx) {
-  let s = 0;
-  for (let i = 0; i < idx; i++) s += N(path[i].nodeId).o[path[i].optIdx].d;
-  return s;
-}
-function totalAccumulated() {
-  let s = 0;
-  for (const st of path) s += N(st.nodeId).o[st.optIdx].d;
-  return s;
-}
-function collectPairsWithIdx() {
-  const out = [];
-  path.forEach((st, i) => {
-    const o = N(st.nodeId).o[st.optIdx];
-    if (o.p) for (const p of o.p) out.push({pair: p, stepIdx: i});
-  });
-  return out;
-}
-
-function renderBoard() {
-  const items = collectPairsWithIdx();
-  const el = document.getElementById('pairs');
-  el.innerHTML = '';
-  for (let i = 0; i < 6; i++) { // hardcoded 6 for grid
-    const row = document.createElement('div');
-    row.className = 'pair' + (i >= items.length ? ' empty' : '');
-    if (i < items.length) {
-      const {pair, stepIdx} = items[i];
-      const [our, en, kind, score] = pair;
-      const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs';
-      const sCls = score >= 12 ? 'pos' : score > 10 ? 'mid' : 'neg';
-      if (score <= 10) row.classList.add('bottleneck');
-
-      const wr = getWinRate(our, en);
-      const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`;
-      const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid');
-      const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
-
-      row.innerHTML = `
-        <div class="cell ${cls}">${our}</div>
-        <div class="vs">vs</div>
-        <div class="cell theirs">${en}</div>
-        <div class="sc ${sCls}">${fmt(score)}</div>
-        <div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
-      row.onclick = () => scrollToStep(stepIdx);
-      row.style.cursor = 'pointer';
-    } else {
-      row.innerHTML = `<div class="cell ours">—</div><div class="vs">vs</div>
-        <div class="cell theirs">—</div><div class="sc mid">—</div>
-        <div class="wr na">—</div>`;
-    }
-    el.appendChild(row);
-  }
-  const acc = totalAccumulated();
-  const cur = childOfLast(path);
-  const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0);
-  const g = acc + curMin;
-  const meets = g >= R.threshold;
-  document.getElementById('totals').innerHTML = `
-    <div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div>
-    <div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div>
-    <div class="bar"><div style="width:${Math.min(100, g/1.2)}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
-}
-
-function scrollToStep(i) {
-  const el = document.getElementById('step-' + i);
-  if (!el) return;
-  el.scrollIntoView({behavior:'smooth', block:'center'});
-  el.classList.add('flash');
-  setTimeout(() => el.classList.remove('flash'), 900);
-}
-
-function currentLineStats() {
-  if (!path.length) return nodeStats(R.root_id);
-  const i = path.length - 1;
-  const accBefore = accumulatedBefore(i);
-  return cumStats(path[i].nodeId, path[i].optIdx, accBefore);
-}
-
-function renderHistogram() {
-  const el = document.getElementById('histChart');
-  const legendEl = document.getElementById('histLegend');
-  const stats = currentLineStats();
-  const hist = stats.hist;
-  const buckets = [];
-  for (let v = 0; v <= 120; v += 2) buckets.push(hist[v] || 0);
-  const peak = Math.max(...buckets, 1);
-  const bars = buckets.map((c, bi) => {
-    const v = bi * 2;
-    const h = c === 0 ? 0 : Math.max(2, Math.round(c / peak * 62));
-    let cls = 'hb';
-    if (v < R.threshold) cls += ' low';
-    else if (v < R.threshold + 10) cls += ' mid';
-    else if (v < R.threshold + 25) cls += ' high';
-    else cls += ' best';
-    return `<div class="${cls}" style="height:${h}px" title="${v} очков: ${c} путей"></div>`;
-  }).join('');
-  const thresholdPct = Math.max(0, Math.min(100, (R.threshold / 120) * 100));
-  el.innerHTML = `<div class="hist-bars">${bars}<div class="hist-threshold" style="left:${thresholdPct}%"></div></div>
-    <div class="hist-axis"><span>0</span><span>30</span><span>60</span><span>90</span><span>120</span></div>`;
-
-  const sorted = [];
-  for (const k in hist) { const v = Number(k); for (let i=0;i<hist[k];i++) sorted.push(v); }
-  sorted.sort((a,b)=>a-b);
-  const q = p => sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(p*sorted.length))] : null;
-  const p10 = q(.10), p50 = q(.50), p90 = q(.90);
-  const minPct = (hist[Math.round(stats.min)] || 0) / stats.count * 100;
-  legendEl.innerHTML = `
-    <span title="Сколько различных путей до конца игры учтено от текущей точки">путей: <b>${stats.count}</b></span>
-    <span title="10-й процентиль">p10: <b>${fmt(p10)}</b></span>
-    <span title="Медиана">p50: <b>${fmt(p50)}</b></span>
-    <span title="90-й процентиль">p90: <b>${fmt(p90)}</b></span>
-    <span class="hn" title="Минимально возможный итог">мин ${fmt(stats.min)} (${minPct.toFixed(0)}%)</span>
-    <span class="hl" title="Максимально возможный итог">макс ${fmt(stats.max)}</span>
-    <span title="Стандартное отклонение">σ <b>${fmt(stats.std)}</b></span>`;
-}
-
-function renderStrategyCompare() {
-  const el = document.getElementById('stratCompare');
-  if (!el) return;
-  const root = N(R.root_id);
-  const rows = [];
-  root.o.forEach((o, oi) => {
-    const stats = cumStats(R.root_id, oi, 0);
-    rows.push({ name: o.a, oi, min: stats.min, avg: stats.avg, max: stats.max,
-                std: stats.std,
-                minPct: (stats.hist[Math.round(stats.min)] || 0) / stats.count * 100 });
-  });
-  rows.sort((a, b) => b.min - a.min);
-  const curD1 = path.length ? N(path[0].nodeId).o[path[0].optIdx].a : null;
-  let html = `<table class="strat-table"><thead><tr>
-      <th title="Первый дефендер">D1</th><th title="Гарантия">min</th>
-      <th title="Среднее">avg</th><th title="Максимум">max</th>
-      <th title="Отклонение">σ</th><th title="Доля попаданий в минимум">min%</th>
-    </tr></thead><tbody>`;
-  rows.forEach(r => {
-    const cls = r.min >= R.threshold ? 'pos' : 'neg';
-    const active = (curD1 === r.name) ? ' style="background:#2a3040"' : '';
-    html += `<tr${active} title="Клик — выбрать эту стратегию">
-      <td class="strat-name">${r.name}</td>
-      <td class="num ${cls}">${fmt(r.min)}</td>
-      <td class="num">${fmt(r.avg)}</td>
-      <td class="num">${fmt(r.max)}</td>
-      <td class="num">${fmt(r.std)}</td>
-      <td class="num">${r.minPct.toFixed(0)}%</td></tr>`;
-  });
-  html += '</tbody></table>';
-  el.innerHTML = html;
-  el.querySelectorAll('tbody tr').forEach(tr => {
-    tr.onclick = () => {
-      const name = tr.querySelector('.strat-name').textContent;
-      const oi = root.o.findIndex(o => o.a === name);
-      if (oi >= 0) clickOption(R.root_id, oi);
-    };
-  });
-}
-
-function renderBottlenecks() {
-  const el = document.getElementById('bottlenecks');
-  if (!el) return;
-  const items = collectPairsWithIdx();
-  if (!items.length) {
-    el.innerHTML = '<div class="empty-hint">Выберите хотя бы одно действие</div>';
-    return;
-  }
-  const sorted = [...items].sort((a, b) => a.pair[3] - b.pair[3]);
-  let html = '<div class="bn-list">';
-  sorted.forEach(({pair, stepIdx}) => {
-    const [our, en, , score] = pair;
-    const wr = getWinRate(our, en);
-    const wrTag = wr !== null
-      ? ` · <span style="color:${wr>=55?'#6cd88a':wr<=45?'#ff8080':'#c0c6d0'}">WR ${wr.toFixed(1)}%</span>`
-      : '';
-    const cls = score >= 12 ? 'good' : score > 10 ? 'mid' : 'bad';
-    const tag = score <= 10 ? ' ← узкое место' : '';
-    html += `<div class="bn-row ${cls}" data-step-idx="${stepIdx}"
-        title="Пара ${our} vs ${en}: ${fmt(score)} очков">
-      <span class="bn-pair">${our} <i>vs</i> ${en}${wrTag}</span>
-      <span class="bn-score">${fmt(score)}${tag}</span>
-    </div>`;
-  });
-  html += '</div>';
-  el.innerHTML = html;
-  el.querySelectorAll('.bn-row').forEach(row => {
-    row.onclick = () => scrollToStep(Number(row.dataset.stepIdx));
-  });
-}
 
 /* ---------- init ---------- */
 (async function init() {
   loadSavedFromSession();
   await loadWinRates();
 
-  // 1. Пробуем загрузить из localStorage (после генерации или загрузки на главной)
-  const stored = localStorage.getItem('wh40k_report');
-  if (stored) {
-    try {
-      R = JSON.parse(stored);
-      if (R.winrates) WINRATES = R.winrates;
-      bestFromStart();
-      return;
-    } catch(e) { console.warn('Ошибка localStorage', e); }
-  }
+  const loader = document.createElement('div');
+  loader.style.cssText = 'position:fixed;inset:0;background:#0f1014;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9999;';
+  loader.innerText = 'Загрузка парингов из облака...';
+  document.body.appendChild(loader);
 
-  // 2. Если нет — просим загрузить файл
-  document.body.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f1014;color:#e0e0e0;font-family:system-ui;">
-      <h2>Нет данных для отображения</h2>
-      <p style="color:#8a92a0;margin-bottom:20px;">Пожалуйста, вернитесь на главную и сгенерируйте паринги или загрузите JSON.</p>
-      <a href="/" style="padding:10px 20px;background:#2a3a5a;color:#fff;text-decoration:none;border-radius:6px;">На главную</a>
-    </div>
-  `;
+  try {
+    // Ждем инициализации Firebase
+    while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
+    const data = await window.FirebaseAPI.load();
+    
+    if (!data) {
+      document.body.removeChild(loader);
+      document.body.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0f1014;color:#e0e0e0;font-family:system-ui;">
+          <h2>В облаке пока нет парингов</h2>
+          <p style="color:#8a92a0;margin-bottom:20px;">Нажмите «Сгенерировать паринги» в левом нижнем углу.</p>
+        </div>
+      `;
+      return;
+    }
+    
+    R = data;
+    if (R.winrates) WINRATES = R.winrates;
+    document.body.removeChild(loader);
+    bestFromStart();
+  } catch (e) {
+    document.body.innerHTML = `<div style="color:#f88;padding:50px;font-family:system-ui;">Ошибка загрузки из БД: ${e.message}</div>`;
+  }
 })();
 </script>
 </body>

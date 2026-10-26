@@ -4,11 +4,9 @@
 <meta charset="utf-8">
 <title>Warhammer 40k паринги</title>
 <style>
-/* ... CSS оставляем прежним ... */
 *{box-sizing:border-box}
 body{font-family:system-ui,sans-serif;background:#0f1014;color:#e0e0e0;margin:0;height:100vh;overflow:hidden}
-.layout{display:grid;grid-template-columns:270px 1fr 400px;height:100vh}
-.sidebar{background:#16181d;padding:14px;overflow-y:auto;border-right:1px solid #23262e;display:flex;flex-direction:column}
+.layout{display:grid;grid-template-columns:1fr 400px;height:100vh}
 h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;margin:0 0 10px}
 .main{padding:0;overflow-y:auto;display:flex;flex-direction:column}
 .toolbar{padding:14px 20px;background:#16181d;border-bottom:1px solid #23262e;position:sticky;top:0;z-index:5}
@@ -32,7 +30,6 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .chk.accent{background:#2a1d3a;border-color:#6a4a9a}
 .chk.accent.on{background:#3a2d5a;border-color:#a080ff}
 .path{padding:16px 20px;flex:1}
-/* ... остальные стили дерева, табло и винрейтов без изменений ... */
 .matrix-wrap{padding:0 20px 16px}
 .matrix-card{background:#16181d;border:1px solid #23262e;border-radius:8px;padding:12px 14px;margin-bottom:10px}
 .matrix-card h3{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#8a92a0;margin:0 0 10px;font-weight:600}
@@ -148,19 +145,11 @@ table.strat-table tbody tr:hover{background:#262a32}
 .bn-pair{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bn-pair i{font-style:normal;color:#6a7280;margin:0 4px}
 .bn-score{font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0}
-.saved-item{position:relative;padding:8px 10px;margin-bottom:5px;border-radius:6px;background:#1e2128;cursor:pointer;font-size:12px;border-left:3px solid #333a45;transition:.1s}
-.saved-item:hover{background:#262a32;border-left-color:#5b9aff}
-.saved-item.active{background:#2a3040;border-left-color:#5b9aff}
-.saved-item .saved-name{font-weight:600;padding-right:20px}
-.saved-item .saved-meta{font-size:10px;color:#8a92a0;margin-top:2px}
-.saved-item .saved-meta.pos{color:#6cd88a}
-.saved-item .saved-meta.neg{color:#ff8080}
-.saved-item .del{position:absolute;top:6px;right:6px;background:transparent;border:none;color:#6a7280;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
-.saved-item .del:hover{color:#ff8080}
 .empty-hint{color:#6a7280;font-size:11px;font-style:italic;text-align:center;padding:14px 0}
-.session-hint{font-size:10px;color:#565c68;margin-top:auto;padding-top:12px;text-align:center;font-style:italic}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2a3a5a;color:#fff;padding:8px 16px;border-radius:6px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:100}
 .toast.on{opacity:1}
+
+/* Winrates */
 .wr-widget{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#14171c;border:1px solid #23262e;border-radius:8px;margin:10px 20px 0;font-size:12px}
 .wr-widget label{color:#8a92a0;font-size:11px}
 .wr-widget select{padding:5px 9px;border-radius:5px;background:#1e2128;color:#d0d6e0;border:1px solid #333a45;font-size:12px;min-width:180px}
@@ -197,6 +186,15 @@ table.strat-table tbody tr:hover{background:#262a32}
 .drop-overlay { position: fixed; inset: 0; background: rgba(42,58,90,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; border: 4px dashed #5b9aff; color: #fff; font-size: 24px; font-weight: bold; pointer-events: none; text-align: center; padding: 40px; }
 .drop-overlay.active { display: flex; }
 
+/* Стили для интерактивной матрицы */
+.matrix th.col-head, .matrix td.row-head { cursor: pointer; user-select: none; transition: opacity 0.2s; }
+.matrix th.col-head:hover, .matrix td.row-head:hover { background: #333a45; color: #fff; }
+.matrix th.col-head.hidden-col, .matrix td.col-cell.hidden-col, 
+.matrix td.row-head.hidden-row, .matrix td.row-cell.hidden-row { opacity: 0.15; }
+.matrix td.v.both { display: flex; flex-direction: column; line-height: 1.1; padding: 2px; font-size: 10px; }
+.matrix td.v.both .my { color: #8ab8ff; font-weight: bold; }
+.matrix td.v.both .not { color: #8a92a0; }
+
 /* Модальное окно генерации */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
 .modal-overlay.active{display:flex}
@@ -214,12 +212,6 @@ table.strat-table tbody tr:hover{background:#262a32}
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar">
-    <h2>Сохранённые линии</h2>
-    <button class="btn primary" id="saveBtn" onclick="saveCurrent()" style="width:100%;margin-bottom:10px">💾 Сохранить текущую</button>
-    <div id="saved"></div>
-    <div class="session-hint">Хранятся до закрытия вкладки</div>
-  </aside>
   <main class="main">
     <div class="toolbar">
       <h1 id="title">—</h1>
@@ -375,27 +367,24 @@ table.strat-table tbody tr:hover{background:#262a32}
 <div class="drop-overlay" id="dropOverlay">Отпустите файл для загрузки</div>
 
 <script>
-const SAVED_KEY = 'wh40k_saved_paths_v1';
 let R = null;
 let path = [];
 let pendingFirst = {};
 let collapsedCycles = {};
-let saved = [];
-let activeSavedIdx = -1;
 let matrixVisible = false;
-let matrixMode = 'my';
+let matrixMode = 'both';
 let manualMode = false;
 let WINRATES = null;
 let wrMode = 'pair';
+let THRESH = 56; 
+let matrixHiddenRows = new Set();
+let matrixHiddenCols = new Set();
 
 const METRICS = { min: true, max: false, avg: true, std: false, freq: false };
 
-/* ... (Функции алиасов, винрейтов, рендера графа остаются без изменений, как в прошлом viewer.html) ... */
-
-// Для экономии места я пропускаю огромный блок FACTIONS_TABLE и функций рендера. 
-// ВСТАВЬ СЮДА ВСЁ, ЧТО БЫЛО В ПРЕДЫДУЩЕМ viewer.html, начиная с `const FACTIONS_TABLE` и до `function renderBottlenecks()`. 
-// Всю эту часть я оставил в коде ниже полностью.
-
+/* ================================================================
+ * FACTION ALIASES
+ * ================================================================ */
 const FACTIONS_TABLE = [
   { canonical: 'Adepta Sororitas', aliases: ['adepta sororitas','sororitas','сороритки','сорроритки','сёстры','сестры','сёстры битвы','адепта сороритас','сороры'] },
   { canonical: 'Adeptus Custodes', aliases: ['adeptus custodes','custodes','кустодес','кусты','кустодиане'] },
@@ -434,21 +423,6 @@ for (const f of FACTIONS_TABLE) {
 const ALIAS_LIST_SORTED = Object.keys(ALIAS_MAP).sort((a, b) => b.length - a.length);
 const WORD_CHAR = 'a-zа-яё0-9';
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-async function saveToDB() {
-  if (!R) return;
-  toast('Сохранение в базу...');
-  try {
-    const res = await fetch('/api/db/save', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ data: JSON.stringify(R) })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    toast('Сохранено в базу!');
-  } catch (e) {
-    alert('Ошибка сохранения: ' + e.message);
-  }
-}
 function resolveFaction(label) {
   if (!label) return null;
   const lower = String(label).toLowerCase().trim();
@@ -583,59 +557,83 @@ function childOfLast(p) { if (!p.length) return R.root_id; return N(p[p.length-1
 function fillOptimal(prefix) { const p = prefix.slice(); let cur = childOfLast(p); const seen = new Set(); while (cur !== -1 && cur !== null && !seen.has(cur)) { seen.add(cur); const node = N(cur); const bi = bestIdx(node); if (bi === null) break; p.push({nodeId: cur, optIdx: bi}); cur = node.o[bi].c; } return p; }
 function nodeStats(nodeId) { const s = N(nodeId).s; return s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 0 }; }
 function cumStats(nodeId, optIdx, accBefore) { const node = N(nodeId); const o = node.o[optIdx]; const base = accBefore + o.d; if (o.c === -1) return { min: base, max: base, avg: base, std: 0, hist: {[base]: 1}, count: 1 }; const sub = N(o.c).s || { min: 0, max: 0, avg: 0, std: 0, hist: {}, count: 1 }; const hist = {}; for (const k in sub.hist) hist[Math.round(Number(k) + base)] = sub.hist[k]; return { min: sub.min + base, max: sub.max + base, avg: sub.avg + base, std: sub.std, hist, count: sub.count }; }
-function bestFromStart() { pendingFirst = {}; path = fillOptimal([]); activeSavedIdx = -1; render(); }
-function resetAll() { pendingFirst = {}; path = []; activeSavedIdx = -1; render(); }
-function optimizeFromCurrent() { pendingFirst = {}; if (!path.length) { path = fillOptimal([]); activeSavedIdx = -1; render(); return; } const last = path[path.length - 1]; const child = N(last.nodeId).o[last.optIdx].c; if (child === -1 || child === null) { toast('Линия уже заполнена'); return; } path = fillOptimal(path); activeSavedIdx = -1; render(); }
-function optimizeFromStep() { const inp = document.getElementById('stepInput'); let x = parseInt(inp.value, 10); if (!Number.isFinite(x) || x < 1) x = 1; pendingFirst = {}; const prefix = path.slice(0, x - 1); path = fillOptimal(prefix); activeSavedIdx = -1; render(); }
-function clickOption(nodeId, optIdx) { delete pendingFirst[nodeId]; const idx = path.findIndex(p => p.nodeId === nodeId); let prefix; if (idx === -1) prefix = path.slice(); else prefix = path.slice(0, idx); prefix.push({nodeId, optIdx}); path = manualMode ? prefix : fillOptimal(prefix); activeSavedIdx = -1; render(); }
-function crossStep(i) { const nodeId = path[i].nodeId; delete pendingFirst[nodeId]; path = path.slice(0, i); for (const k of Object.keys(pendingFirst)) { if (!path.find(p => p.nodeId === k)) delete pendingFirst[k]; } activeSavedIdx = -1; render(); }
+function bestFromStart() { pendingFirst = {}; path = fillOptimal([]); render(); }
+function resetAll() { pendingFirst = {}; path = []; render(); }
+function optimizeFromCurrent() { pendingFirst = {}; if (!path.length) { path = fillOptimal([]); render(); return; } const last = path[path.length - 1]; const child = N(last.nodeId).o[last.optIdx].c; if (child === -1 || child === null) { toast('Линия уже заполнена'); return; } path = fillOptimal(path); render(); }
+function optimizeFromStep() { const inp = document.getElementById('stepInput'); let x = parseInt(inp.value, 10); if (!Number.isFinite(x) || x < 1) x = 1; pendingFirst = {}; const prefix = path.slice(0, x - 1); path = fillOptimal(prefix); render(); }
+function clickOption(nodeId, optIdx) { delete pendingFirst[nodeId]; const idx = path.findIndex(p => p.nodeId === nodeId); let prefix; if (idx === -1) prefix = path.slice(); else prefix = path.slice(0, idx); prefix.push({nodeId, optIdx}); path = manualMode ? prefix : fillOptimal(prefix); render(); }
+function crossStep(i) { const nodeId = path[i].nodeId; delete pendingFirst[nodeId]; path = path.slice(0, i); for (const k of Object.keys(pendingFirst)) { if (!path.find(p => p.nodeId === k)) delete pendingFirst[k]; } render(); }
 function handleOfferClick(nodeId, faction) { const node = N(nodeId); const first = pendingFirst[nodeId]; if (!first) { pendingFirst[nodeId] = faction; renderPath(); return; } if (first === faction) { delete pendingFirst[nodeId]; renderPath(); return; } const target = [first, faction].sort().join('|'); let found = -1; node.o.forEach((o, i) => { const parts = o.a.split(' + ').sort(); if (parts.length === 2 && parts.join('|') === target) found = i; }); if (found >= 0) clickOption(nodeId, found); }
+
 function toggleMatrix() { matrixVisible = !matrixVisible; document.getElementById('matrixWrap').style.display = matrixVisible ? 'block' : 'none'; document.getElementById('matrixBtn').classList.toggle('toggle-on', matrixVisible); if (matrixVisible) renderMatrix(); }
 function setMatrixMode(m) { matrixMode = m; renderMatrix(); }
 function renderMatrix() {
-  if (!R || !R.matrix) return; const wrap = document.getElementById('matrixWrap'); const data = R.matrix[matrixMode]; const players = R.players, enemies = R.enemies;
+  if (!R || !R.matrix) return;
+  const wrap = document.getElementById('matrixWrap');
+  const players = R.players, enemies = R.enemies;
   const cls = v => v==null?'none':v<=1?'e0':v<=3?'e1':v<=6?'e2':v<=8?'e3':'e4';
-  const cell = v => v==null ? `<td class="v none">—</td>` : `<td class="v ${cls(v)}">${v}</td>`;
-  const header = `<tr><th class="row-head">Мы ↓ / Они →</th>${enemies.map(e=>`<th>${e}</th>`).join('')}</tr>`;
-  const rows = players.map((p,i)=>`<tr><td class="row-head">${p}</td>${enemies.map((_,j)=>cell(data[i][j])).join('')}</tr>`).join('');
-  wrap.innerHTML = `<div class="matrix-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Матрица оценок · ${matrixMode==='my'?'«Мой»':'«Не мой»'}</h3><div style="display:flex;gap:6px"><button class="btn ${matrixMode==='my'?'toggle-on':''}" onclick="setMatrixMode('my')">Мой</button><button class="btn ${matrixMode==='not'?'toggle-on':''}" onclick="setMatrixMode('not')">Не мой</button><button class="btn" onclick="toggleMatrix()">✕ Скрыть</button></div></div><div class="matrix-scroll"><table class="matrix">${header}${rows}</table></div></div>`;
+  const cell = (my, not, rowIdx, colIdx) => {
+    const rHid = matrixHiddenRows.has(rowIdx) ? ' hidden-row' : '';
+    const cHid = matrixHiddenCols.has(colIdx) ? ' hidden-col' : '';
+    const classes = `v row-cell ${rHid} ${cHid}`;
+    if (matrixMode === 'my') return `<td class="${classes} ${cls(my)}">${my ?? '—'}</td>`;
+    if (matrixMode === 'not') return `<td class="${classes} ${cls(not)}">${not ?? '—'}</td>`;
+    return `<td class="${classes} both ${cls(my)}"><span class="my">${my ?? '—'}</span><span class="not">${not ?? '—'}</span></td>`;
+  };
+  let header = `<tr><th class="row-head">Мы ↓ / Они →</th>`;
+  enemies.forEach((e, j) => { const hid = matrixHiddenCols.has(j) ? ' hidden-col' : ''; header += `<th class="col-head${hid}" onclick="toggleCol(${j})" title="Нажмите, чтобы скрыть/показать">${e}</th>`; });
+  header += `</tr>`;
+  let rows = players.map((p, i) => {
+    const hid = matrixHiddenRows.has(i) ? ' hidden-row' : '';
+    let tr = `<tr><td class="row-head${hid}" onclick="toggleRow(${i})" title="Нажмите, чтобы скрыть/показать">${p}</td>`;
+    enemies.forEach((_, j) => { tr += cell(R.matrix.my[i][j], R.matrix.not[i][j], i, j); });
+    tr += `</tr>`;
+    return tr;
+  }).join('');
+  wrap.innerHTML = `
+    <div class="matrix-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Матрица оценок</h3>
+        <div style="display:flex;gap:6px">
+          <button class="btn ${matrixMode==='both'?'toggle-on':''}" onclick="setMatrixMode('both')">Мой + Не мой</button>
+          <button class="btn ${matrixMode==='my'?'toggle-on':''}" onclick="setMatrixMode('my')">Только Мой</button>
+          <button class="btn ${matrixMode==='not'?'toggle-on':''}" onclick="setMatrixMode('not')">Только Не мой</button>
+          <button class="btn" onclick="matrixHiddenRows.clear(); matrixHiddenCols.clear(); renderMatrix()">Сбросить скрытые</button>
+          <button class="btn" onclick="toggleMatrix()">✕ Скрыть</button>
+        </div>
+      </div>
+      <div class="matrix-scroll"><table class="matrix">${header}${rows}</table></div>
+      <div style="font-size:10px;color:#6a7280;margin-top:8px">Нажмите на имя игрока или фракции, чтобы скрыть строку/столбец.</div>
+    </div>`;
 }
+function toggleRow(i) { if (matrixHiddenRows.has(i)) matrixHiddenRows.delete(i); else matrixHiddenRows.add(i); renderMatrix(); }
+function toggleCol(j) { if (matrixHiddenCols.has(j)) matrixHiddenCols.delete(j); else matrixHiddenCols.add(j); renderMatrix(); }
+
 function toggleHelp() { const el = document.getElementById('helpBox'); const on = el.style.display === 'none'; el.style.display = on ? 'block' : 'none'; document.getElementById('helpBtn').classList.toggle('toggle-on', on); }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._tm); toast._tm = setTimeout(() => t.classList.remove('on'), 1200); }
 function copySummary() {
   if (!path.length) { toast('Линия пуста'); return; } const g = computeGuarantee(); const pairs = collectPairsWithIdx().map(e => e.pair);
-  let txt = `Гарантия: ${fmt(g)} (порог ${R.threshold})\nПары:\n`;
+  let txt = `Гарантия: ${fmt(g)} (порог ${THRESH})\nПары:\n`;
   pairs.forEach(p => { const wr = getWinRate(p[0], p[1]); const wrTxt = wr !== null ? ` [WR ${wr.toFixed(1)}%]` : ''; txt += `  ${p[0]} vs ${p[1]} — ${fmt(p[3])}${wrTxt}\n`; });
   if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(txt).then(() => toast('Скопировано'), () => { window.prompt('Скопируйте:', txt); }); } else { window.prompt('Скопируйте:', txt); }
 }
 function computeGuarantee() { if (!path.length) return null; const last = path[path.length-1]; const accBefore = accumulatedBefore(path.length-1); return cumStats(last.nodeId, last.optIdx, accBefore).min; }
 function computeOptDelta() { if (!path.length) return 0; const root = N(R.root_id); const optIdx = bestIdx(root); if (optIdx === null) return 0; const optMin = cumStats(R.root_id, optIdx, 0).min; const cur = computeGuarantee(); return cur - optMin; }
-function saveCurrent() { if (!path.length) return; const v = computeGuarantee(); const d1Opt = N(path[0].nodeId).o[path[0].optIdx]; saved.push({ name: `${d1Opt.a} (${path.length} шагов)`, value: v, path: JSON.parse(JSON.stringify(path)) }); persistSaved(); renderSaved(); }
-function loadSaved(i) { if (i < 0 || i >= saved.length) return; pendingFirst = {}; path = JSON.parse(JSON.stringify(saved[i].path)); activeSavedIdx = i; render(); }
-function deleteSaved(e, i) { e.stopPropagation(); saved.splice(i, 1); if (activeSavedIdx === i) activeSavedIdx = -1; else if (activeSavedIdx > i) activeSavedIdx--; persistSaved(); renderSaved(); }
-function persistSaved() { try { sessionStorage.setItem(SAVED_KEY, JSON.stringify(saved)); } catch(e) {} }
-function loadSavedFromSession() { try { const raw = sessionStorage.getItem(SAVED_KEY); if (raw) saved = JSON.parse(raw); } catch(e) { saved = []; } }
-function render() { renderSaved(); renderPath(); renderBoard(); renderToolbar(); renderHistogram(); renderStrategyCompare(); renderBottlenecks(); populateWinrateWidget(); if (matrixVisible) renderMatrix(); }
+function render() { renderPath(); renderBoard(); renderToolbar(); renderHistogram(); renderStrategyCompare(); renderBottlenecks(); populateWinrateWidget(); if (matrixVisible) renderMatrix(); }
 function renderToolbar() {
-  const g = computeGuarantee(); const meets = g !== null && g >= R.threshold; const acc = totalAccumulated(); const delta = path.length ? computeOptDelta() : null;
+  const g = computeGuarantee(); const meets = g !== null && g >= THRESH; const acc = totalAccumulated(); const delta = path.length ? computeOptDelta() : null;
   document.getElementById('title').textContent = path.length ? 'Текущая линия' : 'Выберите старт';
   let html = '';
-  if (g !== null) { html += `<b class="${meets?'pos':'neg'}" style="font-size:13px;margin-right:5px">${meets?'✓':'✗'}</b><b class="${meets?'pos':'neg'}">${fmt(g)}</b> / ${R.threshold}`; } else { html += `<span style="color:#6a7280">гарантия —</span> / ${R.threshold}`; }
+  if (g !== null) { html += `<b class="${meets?'pos':'neg'}" style="font-size:13px;margin-right:5px">${meets?'✓':'✗'}</b><b class="${meets?'pos':'neg'}">${fmt(g)}</b> / ${THRESH}`; } else { html += `<span style="color:#6a7280">гарантия —</span> / ${THRESH}`; }
   html += ` &nbsp;·&nbsp; набрано <b>${fmt(acc)}</b>`;
   if (delta !== null) { let dcls = '', dtxt; if (Math.abs(delta) < 0.05) { dcls = 'pos'; dtxt = 'Δ 0.0 (оптимум)'; } else if (delta > 0) { dcls = 'pos'; dtxt = `Δ +${fmt(delta)}`; } else { dcls = 'neg'; dtxt = `Δ ${fmt(delta)}`; } html += ` &nbsp;·&nbsp; <b class="${dcls}">${dtxt}</b>`; }
   if (manualMode) html += ` &nbsp;·&nbsp; <b style="color:#a080ff">ручной</b>`;
   document.getElementById('summary').innerHTML = html;
-  document.getElementById('saveBtn').disabled = !path.length;
   const inp = document.getElementById('stepInput'); inp.max = Math.max(1, path.length); if (parseInt(inp.value, 10) > inp.max) inp.value = inp.max;
-}
-function renderSaved() {
-  const el = document.getElementById('saved'); el.innerHTML = '';
-  if (!saved.length) { el.innerHTML = '<div class="empty-hint">Пока ничего не сохранено.<br>Выберите линию и нажмите 💾</div>'; return; }
-  saved.forEach((s, i) => { const d = document.createElement('div'); d.className = 'saved-item' + (i === activeSavedIdx ? ' active' : ''); const meets = s.value >= R.threshold; d.innerHTML = `<div class="saved-name">${s.name}</div><div class="saved-meta ${meets?'pos':'neg'}">гарантия ≥ ${fmt(s.value)}</div><button class="del" title="Удалить">×</button>`; d.onclick = () => loadSaved(i); d.querySelector('.del').onclick = ev => deleteSaved(ev, i); el.appendChild(d); });
 }
 function buildMetricsBadges(stats) {
   if (!stats) return ''; const parts = [];
-  if (METRICS.min) { const ok = stats.min >= R.threshold; parts.push(`<span class="badge ${ok?'pos':'neg'}" title="Гарантированный минимум"><span class="k">min</span>${fmt(stats.min)}</span>`); }
+  if (METRICS.min) { const ok = stats.min >= THRESH; parts.push(`<span class="badge ${ok?'pos':'neg'}" title="Гарантированный минимум"><span class="k">min</span>${fmt(stats.min)}</span>`); }
   if (METRICS.max) parts.push(`<span class="badge max" title="Максимум"><span class="k">max</span>${fmt(stats.max)}</span>`);
   if (METRICS.avg) parts.push(`<span class="badge avg" title="Среднее"><span class="k">avg</span>${fmt(stats.avg)}</span>`);
   if (METRICS.std) parts.push(`<span class="badge std" title="Стд. отклонение"><span class="k">σ</span>${fmt(stats.std)}</span>`);
@@ -691,7 +689,7 @@ function renderSimplePlaques(nodeId, node, accBefore, chosenIdx) {
     const oel = document.createElement('div'); oel.className = 'opt';
     if (chosenIdx != null && oi === chosenIdx) oel.classList.add('chosen');
     if (o.op) oel.classList.add('optimal');
-    const cs = cumStats(nodeId, oi, accBefore); const meetsOpt = cs.min >= R.threshold;
+    const cs = cumStats(nodeId, oi, accBefore); const meetsOpt = cs.min >= THRESH;
     oel.innerHTML = `${o.a}<span class="d">${fmt(cs.min)}${meetsOpt?' ✓':''}</span>`; oel.onclick = () => clickOption(nodeId, oi); opts.appendChild(oel);
   });
   return opts;
@@ -705,14 +703,14 @@ function renderOfferPlaques(nodeId, node, accBefore, chosenIdx) {
   return wrap;
 }
 function updateOfferPlaques(wrap, nodeId, node, accBefore, chosenIdx) {
-  const first = pendingFirst[nodeId] || null; const committedOpt = (chosenIdx != null && chosenIdx >= 0) ? node.o[chosenIdx] : null; const committedSet = committedOpt ? new Set(committedOpt.a.split(' + ')) : new Set(); const committedStats = committedOpt ? cumStats(nodeId, chosenIdx, accBefore) : null; const committedMeets = committedStats ? committedStats.min >= R.threshold : false;
+  const first = pendingFirst[nodeId] || null; const committedOpt = (chosenIdx != null && chosenIdx >= 0) ? node.o[chosenIdx] : null; const committedSet = committedOpt ? new Set(committedOpt.a.split(' + ')) : new Set(); const committedStats = committedOpt ? cumStats(nodeId, chosenIdx, accBefore) : null; const committedMeets = committedStats ? committedStats.min >= THRESH : false;
   wrap.querySelectorAll('.opt').forEach(oel => {
     const f = oel.dataset.faction; oel.className = 'opt'; oel.textContent = f;
     if (first === f) { oel.classList.add('picked'); return; }
     if (committedSet.has(f)) { oel.classList.add('chosen'); const sp = document.createElement('span'); sp.className = 'd'; sp.textContent = `${fmt(committedStats.min)}${committedMeets?' ✓':''}`; oel.appendChild(sp); return; }
     let bestStat = null;
     node.o.forEach((o, oi) => { const parts = o.a.split(' + '); if (parts.length !== 2) return; if (!parts.includes(f)) return; if (first && !parts.includes(first)) return; const cs = cumStats(nodeId, oi, accBefore); if (!bestStat || cs.min > bestStat.min) bestStat = cs; });
-    if (bestStat) { const sp = document.createElement('span'); sp.className = 'd'; const ok = bestStat.min >= R.threshold; sp.textContent = `${fmt(bestStat.min)}${ok?' ✓':''}`; oel.appendChild(sp); }
+    if (bestStat) { const sp = document.createElement('span'); sp.className = 'd'; const ok = bestStat.min >= THRESH; sp.textContent = `${fmt(bestStat.min)}${ok?' ✓':''}`; oel.appendChild(sp); }
   });
 }
 function accumulatedBefore(idx) { let s = 0; for (let i = 0; i < idx; i++) s += N(path[i].nodeId).o[path[i].optIdx].d; return s; }
@@ -720,7 +718,7 @@ function totalAccumulated() { let s = 0; for (const st of path) s += N(st.nodeId
 function collectPairsWithIdx() { const out = []; path.forEach((st, i) => { const o = N(st.nodeId).o[st.optIdx]; if (o.p) for (const p of o.p) out.push({pair: p, stepIdx: i}); }); return out; }
 function renderBoard() {
   const items = collectPairsWithIdx(); const el = document.getElementById('pairs'); el.innerHTML = '';
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < R.players.length; i++) {
     const row = document.createElement('div'); row.className = 'pair' + (i >= items.length ? ' empty' : '');
     if (i < items.length) {
       const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; const sCls = score >= 12 ? 'pos' : score > 10 ? 'mid' : 'neg';
@@ -731,18 +729,19 @@ function renderBoard() {
     } else { row.innerHTML = `<div class="cell ours">—</div><div class="vs">vs</div><div class="cell theirs">—</div><div class="sc mid">—</div><div class="wr na">—</div>`; }
     el.appendChild(row);
   }
-  const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= R.threshold;
-  document.getElementById('totals').innerHTML = `<div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div><div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div><div class="bar"><div style="width:${Math.min(100, g/1.2)}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
+  const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= THRESH;
+  document.getElementById('totals').innerHTML = `<div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div><div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div><div class="bar"><div style="width:${Math.min(100, g/(R.players.length*2))}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
 }
 function scrollToStep(i) { const el = document.getElementById('step-' + i); if (!el) return; el.scrollIntoView({behavior:'smooth', block:'center'}); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 900); }
 function currentLineStats() { if (!path.length) return nodeStats(R.root_id); const i = path.length - 1; const accBefore = accumulatedBefore(i); return cumStats(path[i].nodeId, path[i].optIdx, accBefore); }
 function renderHistogram() {
   const el = document.getElementById('histChart'); const legendEl = document.getElementById('histLegend'); const stats = currentLineStats(); const hist = stats.hist; const buckets = [];
-  for (let v = 0; v <= 120; v += 2) buckets.push(hist[v] || 0);
+  const maxPts = R.players.length * 20;
+  for (let v = 0; v <= maxPts; v += 2) buckets.push(hist[v] || 0);
   const peak = Math.max(...buckets, 1);
-  const bars = buckets.map((c, bi) => { const v = bi * 2; const h = c === 0 ? 0 : Math.max(2, Math.round(c / peak * 62)); let cls = 'hb'; if (v < R.threshold) cls += ' low'; else if (v < R.threshold + 10) cls += ' mid'; else if (v < R.threshold + 25) cls += ' high'; else cls += ' best'; return `<div class="${cls}" style="height:${h}px" title="${v} очков: ${c} путей"></div>`; }).join('');
-  const thresholdPct = Math.max(0, Math.min(100, (R.threshold / 120) * 100));
-  el.innerHTML = `<div class="hist-bars">${bars}<div class="hist-threshold" style="left:${thresholdPct}%"></div></div><div class="hist-axis"><span>0</span><span>30</span><span>60</span><span>90</span><span>120</span></div>`;
+  const bars = buckets.map((c, bi) => { const v = bi * 2; const h = c === 0 ? 0 : Math.max(2, Math.round(c / peak * 62)); let cls = 'hb'; if (v < THRESH) cls += ' low'; else if (v < THRESH + 10) cls += ' mid'; else if (v < THRESH + 25) cls += ' high'; else cls += ' best'; return `<div class="${cls}" style="height:${h}px" title="${v} очков: ${c} путей"></div>`; }).join('');
+  const thresholdPct = Math.max(0, Math.min(100, (THRESH / maxPts) * 100));
+  el.innerHTML = `<div class="hist-bars">${bars}<div class="hist-threshold" style="left:${thresholdPct}%"></div></div><div class="hist-axis"><span>0</span><span>${Math.round(maxPts*0.25)}</span><span>${Math.round(maxPts*0.5)}</span><span>${Math.round(maxPts*0.75)}</span><span>${maxPts}</span></div>`;
   const sorted = []; for (const k in hist) { const v = Number(k); for (let i=0;i<hist[k];i++) sorted.push(v); } sorted.sort((a,b)=>a-b);
   const q = p => sorted.length ? sorted[Math.min(sorted.length-1, Math.floor(p*sorted.length))] : null;
   const p10 = q(.10), p50 = q(.50), p90 = q(.90); const minPct = (hist[Math.round(stats.min)] || 0) / stats.count * 100;
@@ -753,7 +752,7 @@ function renderStrategyCompare() {
   root.o.forEach((o, oi) => { const stats = cumStats(R.root_id, oi, 0); rows.push({ name: o.a, oi, min: stats.min, avg: stats.avg, max: stats.max, std: stats.std, minPct: (stats.hist[Math.round(stats.min)] || 0) / stats.count * 100 }); });
   rows.sort((a, b) => b.min - a.min); const curD1 = path.length ? N(path[0].nodeId).o[path[0].optIdx].a : null;
   let html = `<table class="strat-table"><thead><tr><th title="Первый дефендер">D1</th><th title="Гарантия">min</th><th title="Среднее">avg</th><th title="Максимум">max</th><th title="Отклонение">σ</th><th title="Доля попаданий в минимум">min%</th></tr></thead><tbody>`;
-  rows.forEach(r => { const cls = r.min >= R.threshold ? 'pos' : 'neg'; const active = (curD1 === r.name) ? ' style="background:#2a3040"' : ''; html += `<tr${active} title="Клик — выбрать"><td class="strat-name">${r.name}</td><td class="num ${cls}">${fmt(r.min)}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.max)}</td><td class="num">${fmt(r.std)}</td><td class="num">${r.minPct.toFixed(0)}%</td></tr>`; });
+  rows.forEach(r => { const cls = r.min >= THRESH ? 'pos' : 'neg'; const active = (curD1 === r.name) ? ' style="background:#2a3040"' : ''; html += `<tr${active} title="Клик — выбрать"><td class="strat-name">${r.name}</td><td class="num ${cls}">${fmt(r.min)}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.max)}</td><td class="num">${fmt(r.std)}</td><td class="num">${r.minPct.toFixed(0)}%</td></tr>`; });
   html += '</tbody></table>'; el.innerHTML = html;
   el.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const name = tr.querySelector('.strat-name').textContent; const oi = root.o.findIndex(o => o.a === name); if (oi >= 0) clickOption(R.root_id, oi); }; });
 }
@@ -813,7 +812,6 @@ async function doGenerate() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
     
-    // Сохраняем в Firebase
     const resDb = await fetch('/api/db/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -821,9 +819,9 @@ async function doGenerate() {
     });
     if (!resDb.ok) throw new Error('Ошибка сохранения в БД');
     
-    // Обновляем текущий экран
     R = data;
     if (R.winrates) WINRATES = R.winrates;
+    THRESH = Math.max(1, R.players.length * 10 - 4);
     bestFromStart();
     closeGenModal();
     toast('Паринги сгенерированы и сохранены в облако!');
@@ -832,7 +830,6 @@ async function doGenerate() {
   }
 }
 
-// Modal Drag and Drop
 const dropZoneModal = document.getElementById('dropZoneModal');
 const fileInputModal = document.getElementById('fileInputModal');
 dropZoneModal.addEventListener('click', () => fileInputModal.click());
@@ -861,6 +858,7 @@ async function handleFileModal(file) {
       
       R = data;
       if (R.winrates) WINRATES = R.winrates;
+      THRESH = Math.max(1, R.players.length * 10 - 4);
       bestFromStart();
       closeGenModal();
       toast('JSON загружен и сохранен в облако!');
@@ -869,7 +867,6 @@ async function handleFileModal(file) {
   reader.readAsText(file);
 }
 
-// Global Drop (если перетащить файл просто на страницу)
 const overlay = document.getElementById('dropOverlay');
 let dragCounter = 0;
 window.addEventListener('dragenter', (e) => { e.preventDefault(); dragCounter++; if (dragCounter === 1) overlay.classList.add('active'); });
@@ -882,7 +879,6 @@ window.addEventListener('drop', (e) => {
 
 /* ---------- init ---------- */
 (async function init() {
-  loadSavedFromSession();
   await loadWinRates();
 
   const loader = document.createElement('div');
@@ -907,6 +903,9 @@ window.addEventListener('drop', (e) => {
     
     R = data;
     if (R.winrates) WINRATES = R.winrates;
+    
+    THRESH = Math.max(1, R.players.length * 10 - 4);
+    
     bestFromStart();
   } catch (e) {
     document.body.innerHTML = `<div style="color:#f88;padding:50px;font-family:system-ui;">Ошибка загрузки из БД: ${e.message}</div>`;

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>Warhammer 40k Pairings</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background: #0f1014; color: #e0e0e0; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: #16181d; padding: 30px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid #23262e; }
+        h1 { font-size: 20px; margin-top: 0; color: #fff; }
+        label { display: block; margin: 15px 0 5px; font-size: 13px; color: #8a92a0; }
+        input, select { width: 100%; padding: 10px; border-radius: 6px; background: #1e2128; border: 1px solid #333a45; color: #fff; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 20px; background: #2a3a5a; border: 1px solid #5b9aff; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        button:hover { background: #3a5a8a; }
+        #status { margin-top: 15px; font-size: 12px; text-align: center; color: #ffaa5b; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Создать турнир</h1>
+        <label>Ссылка на Google Sheets:</label>
+        <input type="text" id="gurl" placeholder="https://docs.google.com/spreadsheets/d/...">
+
+        <label>Лист (Тур):</label>
+        <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
+
+        <label>Размер команды:</label>
+        <select id="tsize">
+            <option value="3">3 на 3</option>
+            <option value="5">5 на 5</option>
+            <option value="6" selected>6 на 6</option>
+            <option value="8">8 на 8</option>
+        </select>
+
+        <label>Формат финала:</label>
+        <select id="format">
+            <option value="champ_ref" selected>Чемпион vs Отказник</option>
+            <option value="champ_champ">Чемпион vs Чемпион</option>
+        </select>
+
+        <label>Шкала оценок:</label>
+        <select id="scale">
+            <option value="10" selected>10-балльная</option>
+            <option value="7">7-балльная</option>
+            <option value="5">5-балльная</option>
+        </select>
+
+        <button onclick="fetchSheets()">Загрузить листы</button>
+        <button onclick="generate()" style="background:#1e3a20; border-color:#6cd88a; margin-top:10px;">Сгенерировать паринги</button>
+        <div id="status"></div>
+    </div>
+    <script>
+        async function fetchSheets() {
+            const url = document.getElementById('gurl').value;
+            if (!url) return alert('Введите ссылку');
+            const st = document.getElementById('status');
+            st.innerText = 'Загрузка листов...';
+            try {
+                const res = await fetch('/api/sheets', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url}) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+                const sel = document.getElementById('sheet');
+                sel.innerHTML = data.sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+                sel.disabled = false;
+                st.innerText = 'Листы загружены.';
+            } catch(e) {
+                st.innerText = 'Ошибка: ' + e.message;
+            }
+        }
+
+        async function generate() {
+            const url = document.getElementById('gurl').value;
+            const sheet_name = document.getElementById('sheet').value;
+            const team_size = parseInt(document.getElementById('tsize').value);
+            const format_type = document.getElementById('format').value;
+            const scale = parseInt(document.getElementById('scale').value);
+
+            if (!url || !sheet_name) return alert('Заполните все поля');
+            const st = document.getElementById('status');
+            st.innerText = 'Генерация (займет ~10-30 сек)...';
+
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, sheet_name, team_size, format_type, scale})
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+
+                // Сохраняем в localStorage и редиректим на визуализатор
+                localStorage.setItem('wh40k_report', JSON.stringify(data));
+                window.location.href = '/static/viewer.html';
+            } catch(e) {
+                st.innerText = 'Ошибка: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>

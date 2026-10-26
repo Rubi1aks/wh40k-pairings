@@ -25,8 +25,6 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .btn:disabled{opacity:.4;cursor:default}
 .btn.primary{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 .btn.toggle-on{background:#2a3a5a;border-color:#5b9aff;color:#fff}
-.step-input{width:56px;padding:4px 7px;border-radius:5px;background:#1e2128;color:#d0d6e0;border:1px solid #333a45;font-size:11px;text-align:center}
-.step-input:focus{outline:none;border-color:#5b9aff}
 .metrics-row{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;color:#6a7280}
 .chk{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#d0d6e0;cursor:pointer;padding:3px 8px;border-radius:5px;background:#1e2128;border:1px solid #333a45;user-select:none}
 .chk input{margin:0;cursor:pointer;accent-color:#5b9aff}
@@ -48,9 +46,15 @@ table.matrix th.col-head { cursor: pointer; }
 table.matrix th.row-head:hover,table.matrix th.col-head:hover{background:#333a45;color:#fff;}
 table.matrix td.v{font-variant-numeric:tabular-nums;min-width:40px}
 table.matrix td.v .num-pair{display:flex;justify-content:center;gap:4px;font-size:11px;}
-table.matrix td.v .my{color:#8ab8ff;font-weight:bold;}
-table.matrix td.v .not{color:#8a92a0;}
+table.matrix td.v .my{font-weight:bold;}
 table.matrix .hidden-cell{display:none;}
+
+/* Подсветка ячеек матрицы */
+table.matrix td.v.e0{background:#3a1a1a;color:#ff9090}
+table.matrix td.v.e1{background:#3a2a1a;color:#ffb070}
+table.matrix td.v.e2{background:#2a2a2a;color:#c0c0c0}
+table.matrix td.v.e3{background:#1e2a20;color:#90d0a0}
+table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 
 .cycle-group{margin-bottom:10px}
 .cycle-header{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#1a1d24;border-radius:6px;margin-bottom:6px;font-size:11px;color:#8a92a0;cursor:pointer;user-select:none;border:1px solid #23262e;transition:.1s}
@@ -105,7 +109,7 @@ table.matrix .hidden-cell{display:none;}
 .pair .sc{text-align:right;font-weight:700;font-size:12px}
 .pair .sc.pos{color:#6cd88a}
 .pair .sc.neg{color:#ff8080}
-.pair .sc.mid{color:#c0c6d0} /* Серая ничья */
+.pair .sc.mid{color:#c0c6d0}
 .pair .wr{text-align:right;font-weight:600;font-size:11px;font-variant-numeric:tabular-nums;padding:3px 5px;border-radius:4px;background:#1a1d24}
 .pair .wr.pos{color:#6cd88a}
 .pair .wr.neg{color:#ff8080}
@@ -134,16 +138,6 @@ table.matrix .hidden-cell{display:none;}
 .hist-legend .hl{color:#6cd88a}
 .hist-legend .hn{color:#ff8080}
 .hist-legend span{cursor:help;border-bottom:1px dotted #333a45;padding-bottom:1px}
-table.strat-table{width:100%;border-collapse:collapse;font-size:11px}
-table.strat-table th{color:#6a7280;font-weight:600;padding:5px 4px;text-align:right;font-size:10px;border-bottom:1px solid #2a2e38;cursor:help;user-select:none}
-table.strat-table th:first-child{text-align:left}
-table.strat-table td{padding:5px 4px;border-bottom:1px solid #23262e;font-variant-numeric:tabular-nums}
-table.strat-table td.strat-name{font-weight:600;color:#d0d6e0;text-align:left}
-table.strat-table td.num{text-align:right;color:#c0c6d0}
-table.strat-table td.num.pos{color:#6cd88a;font-weight:700}
-table.strat-table td.num.neg{color:#ff8080}
-table.strat-table tbody tr{cursor:pointer}
-table.strat-table tbody tr:hover{background:#262a32}
 .bn-list{display:flex;flex-direction:column;gap:4px}
 .bn-row{display:flex;justify-content:space-between;padding:6px 9px;border-radius:4px;font-size:11px;background:#1a1d24;gap:8px;cursor:pointer;transition:.1s}
 .bn-row:hover{background:#262a32}
@@ -208,7 +202,11 @@ table.strat-table tbody tr:hover{background:#262a32}
 <body>
 <div class="layout" id="mainLayout">
   <aside class="sidebar" id="settingsSidebar">
-    <h2>Настройки и действия</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h2 style="margin:0;">Настройки и действия</h2>
+      <button class="btn" onclick="toggleSidebar()" style="padding:2px 8px; font-size:14px;">✕</button>
+    </div>
+    
     <button class="btn primary" onclick="openGenModal()" style="width:100%;margin-bottom:10px; background:#1e3a20; border-color:#6cd88a; color:#fff;">⚙️ Сгенерировать паринги</button>
     
     <h2 style="margin-top:20px;">Показатели</h2>
@@ -249,9 +247,6 @@ table.strat-table tbody tr:hover{background:#262a32}
         <button class="btn" onclick="bestFromStart()">★ Лучшая с начала</button>
         <button class="btn" onclick="optimizeFromCurrent()" title="Находит первый незаполненный шаг и достраивает линию оптимально от него">▶ Оптимально с текущего шага</button>
         <button class="btn" onclick="resetAll()">⟲ Сбросить</button>
-        <span style="margin-left:12px;color:#6a7280;font-size:11px">с шага</span>
-        <input class="step-input" id="stepInput" type="number" min="1" step="1" value="1">
-        <button class="btn" onclick="optimizeFromStep()">▶ Оптимально с N</button>
         <button class="btn" id="matrixBtn" onclick="toggleMatrix()">📋 Матрица оценок</button>
       </div>
     </div>
@@ -284,18 +279,16 @@ table.strat-table tbody tr:hover{background:#262a32}
     <h2>Табло пар</h2>
     <div id="pairs"></div>
     <div class="totals" id="totals"></div>
+    
     <div class="panel-card">
       <h3>Распределение итоговых очков <span class="panel-sub">(по всем ответам оппонента)</span></h3>
       <div id="histChart"></div>
       <div class="hist-legend" id="histLegend"></div>
     </div>
+    
     <div class="panel-card">
-      <h3>Сравнение стратегий <span class="panel-sub">(если выбрать каждый D1)</span></h3>
-      <div id="stratCompare"></div>
-    </div>
-    <div class="panel-card">
-      <h3>Узкие места линии <span class="panel-sub">(пары с наименьшим вкладом)</span></h3>
-      <div id="bottlenecks"></div>
+      <h3>Винрейты по возрастанию <span class="panel-sub">(&lt; 51%)</span></h3>
+      <div id="winratesList"></div>
     </div>
   </aside>
 </div>
@@ -565,16 +558,17 @@ function cumStats(nodeId, optIdx, accBefore) { const node = N(nodeId); const o =
 function bestFromStart() { pendingFirst = {}; path = fillOptimal([]); render(); }
 function resetAll() { pendingFirst = {}; path = []; render(); }
 function optimizeFromCurrent() { pendingFirst = {}; if (!path.length) { path = fillOptimal([]); render(); return; } const last = path[path.length - 1]; const child = N(last.nodeId).o[last.optIdx].c; if (child === -1 || child === null) { toast('Линия уже заполнена'); return; } path = fillOptimal(path); render(); }
-function optimizeFromStep() { const inp = document.getElementById('stepInput'); let x = parseInt(inp.value, 10); if (!Number.isFinite(x) || x < 1) x = 1; pendingFirst = {}; const prefix = path.slice(0, x - 1); path = fillOptimal(prefix); render(); }
 function clickOption(nodeId, optIdx) { delete pendingFirst[nodeId]; const idx = path.findIndex(p => p.nodeId === nodeId); let prefix; if (idx === -1) prefix = path.slice(); else prefix = path.slice(0, idx); prefix.push({nodeId, optIdx}); path = manualMode ? prefix : fillOptimal(prefix); render(); }
 function crossStep(i) { const nodeId = path[i].nodeId; delete pendingFirst[nodeId]; path = path.slice(0, i); for (const k of Object.keys(pendingFirst)) { if (!path.find(p => p.nodeId === k)) delete pendingFirst[k]; } render(); }
 function handleOfferClick(nodeId, faction) { const node = N(nodeId); const first = pendingFirst[nodeId]; if (!first) { pendingFirst[nodeId] = faction; renderPath(); return; } if (first === faction) { delete pendingFirst[nodeId]; renderPath(); return; } const target = [first, faction].sort().join('|'); let found = -1; node.o.forEach((o, i) => { const parts = o.a.split(' + ').sort(); if (parts.length === 2 && parts.join('|') === target) found = i; }); if (found >= 0) clickOption(nodeId, found); }
 
 function toggleMatrix() { matrixVisible = !matrixVisible; document.getElementById('matrixWrap').style.display = matrixVisible ? 'block' : 'none'; document.getElementById('matrixBtn').classList.toggle('toggle-on', matrixVisible); if (matrixVisible) renderMatrix(); }
 function toggleMatrixMode(mode) {
-  if (matrixMode === 'both') matrixMode = mode;
-  else if (matrixMode === mode) matrixMode = 'both';
-  else matrixMode = 'both';
+  if (matrixMode === mode) {
+    matrixMode = 'both';
+  } else {
+    matrixMode = mode;
+  }
   renderMatrix();
 }
 
@@ -583,18 +577,20 @@ function renderMatrix() {
   const wrap = document.getElementById('matrixWrap');
   const players = R.players, enemies = R.enemies;
   
+  const cls = v => v==null?'':v<=1?'e0':v<=3?'e1':v<=6?'e2':v<=8?'e3':'e4';
+  
   const cell = (my, not, rowIdx, colIdx) => {
     const rHid = matrixHiddenRows.has(rowIdx) ? ' hidden-cell' : '';
     const cHid = matrixHiddenCols.has(colIdx) ? ' hidden-cell' : '';
     const classes = `v row-cell ${rHid} ${cHid}`;
     
-    if (matrixMode === 'def') return `<td class="${classes}">${my ?? '—'}</td>`;
-    if (matrixMode === 'atk') return `<td class="${classes}">${not ?? '—'}</td>`;
+    if (matrixMode === 'def') return `<td class="${classes} ${cls(my)}">${my ?? '—'}</td>`;
+    if (matrixMode === 'atk') return `<td class="${classes} ${cls(not)}">${not ?? '—'}</td>`;
     
-    return `<td class="${classes}">
+    return `<td class="${classes} ${cls(my)}">
       <div class="num-pair">
         <span class="my">${my ?? '—'}</span>
-        <span style="color:#333a45">/</span>
+        <span style="opacity:0.5">/</span>
         <span class="not">${not ?? '—'}</span>
       </div>
     </td>`;
@@ -657,7 +653,7 @@ function copySummary() {
 
 function computeGuarantee() { if (!path.length) return null; const last = path[path.length-1]; const accBefore = accumulatedBefore(path.length-1); return cumStats(last.nodeId, last.optIdx, accBefore).min; }
 function computeOptDelta() { if (!path.length) return 0; const root = N(R.root_id); const optIdx = bestIdx(root); if (optIdx === null) return 0; const optMin = cumStats(R.root_id, optIdx, 0).min; const cur = computeGuarantee(); return cur - optMin; }
-function render() { renderPath(); renderBoard(); renderToolbar(); renderHistogram(); renderStrategyCompare(); renderBottlenecks(); populateWinrateWidget(); if (matrixVisible) renderMatrix(); }
+function render() { renderPath(); renderBoard(); renderToolbar(); renderHistogram(); renderWinratesList(); populateWinrateWidget(); if (matrixVisible) renderMatrix(); }
 
 function renderToolbar() {
   const g = computeGuarantee(); const meets = g !== null && g >= THRESH; const acc = totalAccumulated(); const delta = path.length ? computeOptDelta() : null;
@@ -668,7 +664,6 @@ function renderToolbar() {
   if (delta !== null) { let dcls = '', dtxt; if (Math.abs(delta) < 0.05) { dcls = 'pos'; dtxt = 'Δ 0.0 (оптимум)'; } else if (delta > 0) { dcls = 'pos'; dtxt = `Δ +${fmt(delta)}`; } else { dcls = 'neg'; dtxt = `Δ ${fmt(delta)}`; } html += ` &nbsp;·&nbsp; <b class="${dcls}">${dtxt}</b>`; }
   if (manualMode) html += ` &nbsp;·&nbsp; <b style="color:#a080ff">ручной</b>`;
   document.getElementById('summary').innerHTML = html;
-  const inp = document.getElementById('stepInput'); inp.max = Math.max(1, path.length); if (parseInt(inp.value, 10) > inp.max) inp.value = inp.max;
 }
 
 function buildMetricsBadges(stats) {
@@ -772,10 +767,9 @@ function renderBoard() {
     const row = document.createElement('div'); row.className = 'pair' + (i >= items.length ? ' empty' : '');
     if (i < items.length) {
       const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
-      // Ничья (10 очков) серая, >10 зеленая, <10 красная
       const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
       
-      if (score <= 10) row.classList.add('bottleneck');
+      if (score < 10) row.classList.add('bottleneck'); // Только если СТРОГО меньше 10
       const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
       
       row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
@@ -804,22 +798,38 @@ function renderHistogram() {
   legendEl.innerHTML = `<span title="Путей">путей: <b>${stats.count}</b></span><span title="10-й процентиль">p10: <b>${fmt(p10)}</b></span><span title="Медиана">p50: <b>${fmt(p50)}</b></span><span title="90-й процентиль">p90: <b>${fmt(p90)}</b></span><span class="hn" title="Минимально возможный итог">мин ${fmt(stats.min)} (${minPct.toFixed(0)}%)</span><span class="hl" title="Максимально возможный итог">макс ${fmt(stats.max)}</span><span title="Стд">σ <b>${fmt(stats.std)}</b></span>`;
 }
 
-function renderStrategyCompare() {
-  const el = document.getElementById('stratCompare'); if (!el) return; const root = N(R.root_id); const rows = [];
-  root.o.forEach((o, oi) => { const stats = cumStats(R.root_id, oi, 0); rows.push({ name: o.a, oi, min: stats.min, avg: stats.avg, max: stats.max, std: stats.std, minPct: (stats.hist[Math.round(stats.min)] || 0) / stats.count * 100 }); });
-  rows.sort((a, b) => b.min - a.min); const curD1 = path.length ? N(path[0].nodeId).o[path[0].optIdx].a : null;
-  let html = `<table class="strat-table"><thead><tr><th title="Первый дефендер">D1</th><th title="Гарантия">min</th><th title="Среднее">avg</th><th title="Максимум">max</th><th title="Отклонение">σ</th><th title="Доля попаданий в минимум">min%</th></tr></thead><tbody>`;
-  rows.forEach(r => { const cls = r.min >= THRESH ? 'pos' : 'neg'; const active = (curD1 === r.name) ? ' style="background:#2a3040"' : ''; html += `<tr${active} title="Клик — выбрать"><td class="strat-name">${r.name}</td><td class="num ${cls}">${fmt(r.min)}</td><td class="num">${fmt(r.avg)}</td><td class="num">${fmt(r.max)}</td><td class="num">${fmt(r.std)}</td><td class="num">${r.minPct.toFixed(0)}%</td></tr>`; });
-  html += '</tbody></table>'; el.innerHTML = html;
-  el.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const name = tr.querySelector('.strat-name').textContent; const oi = root.o.findIndex(o => o.a === name); if (oi >= 0) clickOption(R.root_id, oi); }; });
-}
-
-function renderBottlenecks() {
-  const el = document.getElementById('bottlenecks'); if (!el) return; const items = collectPairsWithIdx(); if (!items.length) { el.innerHTML = '<div class="empty-hint">Выберите хотя бы одно действие</div>'; return; }
-  const sorted = [...items].sort((a, b) => a.pair[3] - b.pair[3]); let html = '<div class="bn-list">';
-  sorted.forEach(({pair, stepIdx}) => { const [our, en, , score] = pair; const wr = getWinRate(our, en); const wrTag = wr !== null ? ` · <span style="color:${wr>=55?'#6cd88a':wr<=45?'#ff8080':'#c0c6d0'}">WR ${wr.toFixed(1)}%</span>` : ''; const cls = score >= 12 ? 'good' : score > 10 ? 'mid' : 'bad'; const tag = score <= 10 ? ' ← узкое место' : ''; html += `<div class="bn-row ${cls}" data-step-idx="${stepIdx}" title="Пара ${our} vs ${en}: ${fmt(score)}"><span class="bn-pair">${our} <i>vs</i> ${en}${wrTag}</span><span class="bn-score">${fmt(score)}${tag}</span></div>`; });
-  html += '</div>'; el.innerHTML = html;
-  el.querySelectorAll('.bn-row').forEach(row => { row.onclick = () => scrollToStep(Number(row.dataset.stepIdx)); });
+function renderWinratesList() {
+  const el = document.getElementById('winratesList');
+  if (!R) return;
+  
+  const list = [];
+  R.players.forEach(p => {
+    R.enemies.forEach(e => {
+      const wr = getWinRate(p, e);
+      if (wr !== null && wr <= 50) {
+        list.push({ p, e, wr });
+      }
+    });
+  });
+  
+  list.sort((a, b) => a.wr - b.wr);
+  
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-hint">Нет пар с винрейтом 50% и ниже</div>';
+    return;
+  }
+  
+  let html = '<div class="wr-list" style="display:flex; flex-direction:column; gap:4px;">';
+  list.forEach(item => {
+    const wrCls = item.wr >= 50 ? 'mid' : item.wr <= 45 ? 'neg' : 'mid'; // Could just use mid for all <=50 but red for <=45 is fine
+    const finalCls = item.wr <= 45 ? 'neg' : 'mid';
+    html += `<div class="wr-row" title="${item.p} vs ${item.e}">
+      <span class="wr-opp">${item.p} <i>vs</i> ${item.e}</span>
+      <span class="wr-val ${finalCls}">${item.wr.toFixed(1)}%</span>
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 /* ================================================================

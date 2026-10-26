@@ -90,7 +90,7 @@ def generate(req: GenerateRequest):
         except: pass
         
         return report
-        except Exception as e:
+    except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Ошибка при генерации: {str(e)}")

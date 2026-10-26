@@ -1,4 +1,7 @@
 import json
+import re
+import time
+import urllib.request
 from collections import namedtuple
 from itertools import combinations
 
@@ -116,12 +119,9 @@ class Analyzer:
                 nh = frozenset(st.our_hand - {st.D_our, u})
                 ne = frozenset(st.enemy_hand - {st.D_enemy, st.X})
                 
-                # Проверяем, остались ли дефендеры. Если осталось 2 и более — идем на следующий круг
-                # (например, для 8х8, где 3 дефа).
                 if len(nh) >= 2:
                     child = State(nh, ne, st.cycle + 1, 'def_our', None, None, None, None, None, None)
                 else:
-                    # Финальная стадия
                     our_ref = next(iter(st.our_offers - {u}))
                     en_ref = next(iter(st.enemy_offers - {st.X}))
                     
@@ -129,24 +129,19 @@ class Analyzer:
                     en_unt_set = st.enemy_hand - {st.D_enemy} - st.enemy_offers
                     
                     if not our_unt_set or not en_unt_set:
-                        # Рука пуста (3х3). Отказник играет с Отказником.
-                        # Отказники считаются по колонке "Не мой" (как атакующие)
                         s_rr = self.s_not(our_ref, en_ref)
                         delta += s_rr
                         pairs.append([our_ref, en_ref, 2, s_rr])
                     else:
-                        # Есть Чемпионы (6х6, 8х8)
                         our_unt = next(iter(our_unt_set))
                         en_unt = next(iter(en_unt_set))
                         
                         if self.format_type == 'champ_champ':
-                            # Чемпион-Чемпион (Мой), Отказник-Отказник (Не мой)
                             sc = self.s_my(our_unt, en_unt)
                             sr = self.s_not(our_ref, en_ref)
                             pairs.append([our_unt, en_unt, 2, sc])
                             pairs.append([our_ref, en_ref, 3, sr])
                         else:
-                            # Чемпион-Отказник (Мой), Отказник-Чемпион (Не мой)
                             sc = self.s_my(our_unt, en_ref)
                             sr = self.s_not(our_ref, en_unt)
                             pairs.append([our_unt, en_ref, 2, sc])
@@ -269,3 +264,150 @@ def generate_pairing(players, enemies, sm, sn, scale, format_type):
         'matrix': {'my': [[sm[p][e] for e in enemies] for p in players],
                    'not': [[sn[p][e] for e in enemies] for p in players]}
     }
+
+# ============================================================ winrates
+
+LH_BASE = "https://listhammer.info"
+WINRATES_INCLUDE_RTTS = True
+
+WINRATES_FACTIONS = [
+    ("adepta-sororitas", "Adepta Sororitas"),
+    ("adeptus-custodes", "Adeptus Custodes"),
+    ("adeptus-mechanicus", "Adeptus Mechanicus"),
+    ("aeldari", "Aeldari"),
+    ("astra-militarum", "Astra Militarum"),
+    ("black-templars", "Black Templars"),
+    ("blood-angels", "Blood Angels"),
+    ("chaos-daemons", "Chaos Daemons"),
+    ("chaos-knights", "Chaos Knights"),
+    ("chaos-space-marines", "Chaos Space Marines"),
+    ("dark-angels", "Dark Angels"),
+    ("death-guard", "Death Guard"),
+    ("deathwatch", "Deathwatch"),
+    ("drukhari", "Drukhari"),
+    ("emperors-children", "Emperor's Children"),
+    ("genestealer-cult", "Genestealer Cult"),
+    ("grey-knights", "Grey Knights"),
+    ("imperial-agents", "Imperial Agents"),
+    ("imperial-knights", "Imperial Knights"),
+    ("leagues-of-votann", "Leagues of Votann"),
+    ("necrons", "Necrons"),
+    ("orks", "Orks"),
+    ("space-marines", "Space Marines"),
+    ("space-wolves", "Space Wolves"),
+    ("tau-empire", "T'au Empire"),
+    ("thousand-sons", "Thousand Sons"),
+    ("tyranids", "Tyranids"),
+    ("world-eaters", "World Eaters"),
+]
+
+NUXT_RE = re.compile(
+    r'<script[^>]*id="__NUXT_DATA__"[^>]*>(.*?)</script>',
+    re.DOTALL,
+)
+DEVAL_WRAPPERS = {'ShallowReactive', 'Reactive', 'Ref', 'ShallowRef',
+                  'EmptyRef', 'EmptyShallowRef'}
+
+
+def _devalue_decode(data):
+    if not isinstance(data, list) or len(data) < 2:
+        return None
+    memo = {}
+
+    def resolve(idx):
+        if not isinstance(idx, int) or idx < 0 or idx >= len(data):
+            return idx
+        if idx in memo:
+            return memo[idx]
+        v = data[idx]
+        if isinstance(v, dict):
+            result = {}
+            memo[idx] = result
+            for k, sub in v.items():
+                result[k] = resolve(sub)
+            return result
+        if isinstance(v, list):
+            if v and isinstance(v[0], str) and v[0] in DEVAL_WRAPPERS:
+                inner = resolve(v[1])
+                memo[idx] = inner
+                return inner
+            result = []
+            memo[idx] = result
+            for sub in v:
+                result.append(resolve(sub))
+            return result
+        return v
+
+    for i in range(len(data)):
+        if isinstance(data[i], dict) and 'data' in data[i] and 'state' in data[i]:
+            return resolve(i)
+    return resolve(1) if len(data) > 1 else None
+
+
+def _normalize_opponent_name(name):
+    if not isinstance(name, str):
+        return name
+    if name.endswith(')') and ' (' in name:
+        return name[:name.rindex(' (')]
+    return name
+
+
+def _fetch_winrates_for_faction(slug, log=print):
+    params = []
+    if WINRATES_INCLUDE_RTTS:
+        params.append('includeRtt=true')
+    qs = ('?' + '&'.join(params)) if params else ''
+    url = f"{LH_BASE}/factions/{slug}{qs}"
+    req = urllib.request.Request(url, headers={
+        'User-Agent': 'Mozilla/5.0 (personal wh40k pairing tool)',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+    })
+    with urllib.request.urlopen(req, timeout=30) as r:
+        html = r.read().decode('utf-8', errors='replace')
+    m = NUXT_RE.search(html)
+    if not m:
+        raise RuntimeError("__NUXT_DATA__ не найден в HTML")
+    raw = json.loads(m.group(1))
+    root = _devalue_decode(raw)
+    if not isinstance(root, dict) or 'data' not in root:
+        raise RuntimeError("не удалось раскодировать Nuxt-полезную нагрузку")
+    page_data = root['data']
+    if not isinstance(page_data, dict):
+        raise RuntimeError("неожиданная структура root['data']")
+    faction_payload = None
+    for _, v in page_data.items():
+        if isinstance(v, dict) and 'matchups' in v:
+            faction_payload = v
+            break
+    if not faction_payload:
+        raise RuntimeError("в payload нет matchups")
+    matchups = {}
+    for row in faction_payload.get('matchups', []):
+        opp = row.get('opponentFaction')
+        wr = row.get('winRate')
+        if opp is None or wr is None:
+            continue
+        if isinstance(wr, str):
+            try:
+                wr = float(wr.rstrip('%').strip())
+            except ValueError:
+                continue
+        matchups[_normalize_opponent_name(opp)] = float(wr)
+    return matchups
+
+
+def scrape_winrates(log=print):
+    matrix = {}
+    total = len(WINRATES_FACTIONS)
+    for i, (slug, canonical) in enumerate(WINRATES_FACTIONS, 1):
+        try:
+            matchups = _fetch_winrates_for_faction(slug, log=log)
+        except Exception as e:
+            log(f"  ! [{i}/{total}] {slug}: {e}")
+            time.sleep(1.5)
+            continue
+        matrix[canonical] = matchups
+        log(f"  ✓ [{i}/{total}] {canonical}: {len(matchups)} matchups")
+        time.sleep(1.0)
+    return matrix

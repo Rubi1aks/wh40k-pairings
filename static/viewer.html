@@ -3,34 +3,6 @@
 <head>
 <meta charset="utf-8">
 <title>Warhammer 40k паринги</title>
-<!-- Подключаем Firebase SDK -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYcT2Z6ehIJDOU3VyKIJaPdwaZmKb3-w4",
-    authDomain: "wh40k-pairings.firebaseapp.com",
-    projectId: "wh40k-pairings",
-    storageBucket: "wh40k-pairings.firebasestorage.app",
-    messagingSenderId: "92375427113",
-    appId: "1:92375427113:web:aa4f2c4f0f574090b15438"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const ROOM_ID = "default_team_room"; 
-
-  window.FirebaseAPI = {
-    save: async (data) => {
-      await setDoc(doc(db, "shared_room", ROOM_ID), { data: JSON.stringify(data), updatedAt: Date.now() });
-    },
-    load: async () => {
-      const snap = await getDoc(doc(db, "shared_room", ROOM_ID));
-      return snap.exists() ? JSON.parse(snap.data().data) : null;
-    }
-  };
-</script>
 <style>
 /* ... CSS оставляем прежним ... */
 *{box-sizing:border-box}
@@ -462,6 +434,21 @@ for (const f of FACTIONS_TABLE) {
 const ALIAS_LIST_SORTED = Object.keys(ALIAS_MAP).sort((a, b) => b.length - a.length);
 const WORD_CHAR = 'a-zа-яё0-9';
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+async function saveToDB() {
+  if (!R) return;
+  toast('Сохранение в базу...');
+  try {
+    const res = await fetch('/api/db/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ data: JSON.stringify(R) })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    toast('Сохранено в базу!');
+  } catch (e) {
+    alert('Ошибка сохранения: ' + e.message);
+  }
+}
 function resolveFaction(label) {
   if (!label) return null;
   const lower = String(label).toLowerCase().trim();
@@ -827,8 +814,12 @@ async function doGenerate() {
     if (!res.ok) throw new Error(data.detail);
     
     // Сохраняем в Firebase
-    while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
-    await window.FirebaseAPI.save(data);
+    const resDb = await fetch('/api/db/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ data: JSON.stringify(data) })
+    });
+    if (!resDb.ok) throw new Error('Ошибка сохранения в БД');
     
     // Обновляем текущий экран
     R = data;
@@ -861,8 +852,12 @@ async function handleFileModal(file) {
       const data = JSON.parse(e.target.result);
       if (typeof data !== 'object' || data === null || !data.nodes) throw new Error('В файле нет поля "nodes"');
       
-      while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
-      await window.FirebaseAPI.save(data);
+      const resDb = await fetch('/api/db/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ data: JSON.stringify(data) })
+      });
+      if (!resDb.ok) throw new Error('Ошибка сохранения в БД');
       
       R = data;
       if (R.winrates) WINRATES = R.winrates;
@@ -886,7 +881,6 @@ window.addEventListener('drop', (e) => {
 });
 
 /* ---------- init ---------- */
-/* ---------- init ---------- */
 (async function init() {
   loadSavedFromSession();
   await loadWinRates();
@@ -894,21 +888,18 @@ window.addEventListener('drop', (e) => {
   const loader = document.createElement('div');
   loader.id = 'loadingOverlay';
   loader.style.cssText = 'position:fixed;inset:0;background:#0f1014;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9999;';
-  loader.innerText = 'Загрузка парингов из облака...';
+  loader.innerText = 'Загрузка парингов из базы...';
   document.body.appendChild(loader);
 
   try {
-    while (!window.FirebaseAPI) await new Promise(r => setTimeout(r, 100));
-    const data = await window.FirebaseAPI.load();
+    const res = await fetch('/api/db/load');
+    const data = await res.json();
     
     document.body.removeChild(loader);
 
-    if (!data) {
-      // Если данных нет, показываем заглушку по центру, НО НЕ УДАЛЯЕМ интерфейс!
-      document.getElementById('title').textContent = 'Нет данных в облаке';
+    if (!data || !data.nodes) {
+      document.getElementById('title').textContent = 'Нет данных в базе';
       document.getElementById('summary').innerHTML = '<span style="color:#8a92a0">Нажмите «⚙️ Сгенерировать паринги» в левом нижнем углу.</span>';
-      
-      // Блокируем остальной интерфейс, чтобы не было ошибок
       document.getElementById('path').innerHTML = '<div style="text-align:center;color:#6a7280;margin-top:50px;">Здесь появится дерево парингов.</div>';
       document.getElementById('pairs').innerHTML = '<div class="empty-hint">Нет пар</div>';
       return;

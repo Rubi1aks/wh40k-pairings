@@ -187,13 +187,13 @@ table.strat-table tbody tr:hover{background:#262a32}
 .drop-overlay.active { display: flex; }
 
 /* Стили для интерактивной матрицы */
-.matrix th.col-head, .matrix td.row-head { cursor: pointer; user-select: none; transition: opacity 0.2s; }
+.matrix th.col-head, .matrix td.row-head { cursor: pointer; user-select: none; transition: opacity 0.2s; text-align: center; }
 .matrix th.col-head:hover, .matrix td.row-head:hover { background: #333a45; color: #fff; }
 .matrix th.col-head.hidden-col, .matrix td.col-cell.hidden-col, 
 .matrix td.row-head.hidden-row, .matrix td.row-cell.hidden-row { opacity: 0.15; }
-.matrix td.v.both { display: flex; flex-direction: column; line-height: 1.1; padding: 2px; font-size: 10px; }
-.matrix td.v.both .my { color: #8ab8ff; font-weight: bold; }
-.matrix td.v.both .not { color: #8a92a0; }
+.matrix td.v { padding: 4px 6px; vertical-align: middle; }
+.matrix td.v .my { color: #8ab8ff; font-weight: bold; font-size: 11px; display: block; }
+.matrix td.v .not { color: #8a92a0; font-size: 11px; display: block; }
 
 /* Модальное окно генерации */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
@@ -571,40 +571,75 @@ function renderMatrix() {
   if (!R || !R.matrix) return;
   const wrap = document.getElementById('matrixWrap');
   const players = R.players, enemies = R.enemies;
+  
   const cls = v => v==null?'none':v<=1?'e0':v<=3?'e1':v<=6?'e2':v<=8?'e3':'e4';
+  
   const cell = (my, not, rowIdx, colIdx) => {
     const rHid = matrixHiddenRows.has(rowIdx) ? ' hidden-row' : '';
     const cHid = matrixHiddenCols.has(colIdx) ? ' hidden-col' : '';
     const classes = `v row-cell ${rHid} ${cHid}`;
-    if (matrixMode === 'my') return `<td class="${classes} ${cls(my)}">${my ?? '—'}</td>`;
-    if (matrixMode === 'not') return `<td class="${classes} ${cls(not)}">${not ?? '—'}</td>`;
-    return `<td class="${classes} both ${cls(my)}"><span class="my">${my ?? '—'}</span><span class="not">${not ?? '—'}</span></td>`;
+    
+    if (matrixMode === 'def') return `<td class="${classes} ${cls(my)}">${my ?? '—'}</td>`;
+    if (matrixMode === 'atk') return `<td class="${classes} ${cls(not)}">${not ?? '—'}</td>`;
+    
+    return `<td class="${classes} ${cls(my)}">
+      <span class="my">${my ?? '—'}</span>
+      <span class="not">${not ?? '—'}</span>
+    </td>`;
   };
+
   let header = `<tr><th class="row-head">Мы ↓ / Они →</th>`;
-  enemies.forEach((e, j) => { const hid = matrixHiddenCols.has(j) ? ' hidden-col' : ''; header += `<th class="col-head${hid}" onclick="toggleCol(${j})" title="Нажмите, чтобы скрыть/показать">${e}</th>`; });
+  enemies.forEach((e, j) => {
+    const hid = matrixHiddenCols.has(j) ? ' hidden-col' : '';
+    header += `<th class="col-head${hid}" onclick="toggleCol(${j})" title="Нажмите, чтобы скрыть/показать">${e}</th>`;
+  });
   header += `</tr>`;
+
   let rows = players.map((p, i) => {
     const hid = matrixHiddenRows.has(i) ? ' hidden-row' : '';
     let tr = `<tr><td class="row-head${hid}" onclick="toggleRow(${i})" title="Нажмите, чтобы скрыть/показать">${p}</td>`;
-    enemies.forEach((_, j) => { tr += cell(R.matrix.my[i][j], R.matrix.not[i][j], i, j); });
+    enemies.forEach((_, j) => {
+      tr += cell(R.matrix.my[i][j], R.matrix.not[i][j], i, j);
+    });
     tr += `</tr>`;
     return tr;
   }).join('');
+
   wrap.innerHTML = `
     <div class="matrix-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h3 style="margin:0">Матрица оценок</h3>
         <div style="display:flex;gap:6px">
-          <button class="btn ${matrixMode==='both'?'toggle-on':''}" onclick="setMatrixMode('both')">Мой + Не мой</button>
-          <button class="btn ${matrixMode==='my'?'toggle-on':''}" onclick="setMatrixMode('my')">Только Мой</button>
-          <button class="btn ${matrixMode==='not'?'toggle-on':''}" onclick="setMatrixMode('not')">Только Не мой</button>
-          <button class="btn" onclick="matrixHiddenRows.clear(); matrixHiddenCols.clear(); renderMatrix()">Сбросить скрытые</button>
-          <button class="btn" onclick="toggleMatrix()">✕ Скрыть</button>
+          <button class="btn ${matrixMode==='def'?'toggle-on':''}" onclick="toggleMatrixMode('def')">В деф</button>
+          <button class="btn ${matrixMode==='atk'?'toggle-on':''}" onclick="toggleMatrixMode('atk')">В атаку</button>
         </div>
       </div>
       <div class="matrix-scroll"><table class="matrix">${header}${rows}</table></div>
       <div style="font-size:10px;color:#6a7280;margin-top:8px">Нажмите на имя игрока или фракции, чтобы скрыть строку/столбец.</div>
     </div>`;
+}
+
+function toggleMatrixMode(mode) {
+  if (matrixMode === 'both') {
+    matrixMode = mode; // Клик по одной кнопке из режима "обе" переключает на неё
+  } else if (matrixMode === mode) {
+    matrixMode = 'both'; // Повторный клик по активной кнопке сбрасывает в "обе"
+  } else {
+    matrixMode = 'both'; // Если нажали на другую, показываем обе
+  }
+  renderMatrix();
+}
+
+function toggleRow(i) {
+  if (matrixHiddenRows.has(i)) matrixHiddenRows.delete(i);
+  else matrixHiddenRows.add(i);
+  renderMatrix();
+}
+
+function toggleCol(j) {
+  if (matrixHiddenCols.has(j)) matrixHiddenCols.delete(j);
+  else matrixHiddenCols.add(j);
+  renderMatrix();
 }
 function toggleRow(i) { if (matrixHiddenRows.has(i)) matrixHiddenRows.delete(i); else matrixHiddenRows.add(i); renderMatrix(); }
 function toggleCol(j) { if (matrixHiddenCols.has(j)) matrixHiddenCols.delete(j); else matrixHiddenCols.add(j); renderMatrix(); }

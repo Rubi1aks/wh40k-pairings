@@ -4,14 +4,23 @@
     <meta charset="utf-8">
     <title>Warhammer 40k Pairings</title>
     <style>
-        body { font-family: system-ui, sans-serif; background: #0f1014; color: #e0e0e0; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        body { font-family: system-ui, sans-serif; background: #0f1014; color: #e0e0e0; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; height: 100vh; box-sizing: border-box; }
         .card { background: #16181d; padding: 30px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid #23262e; }
-        h1 { font-size: 20px; margin-top: 0; color: #fff; }
+        h1 { font-size: 20px; margin-top: 0; color: #fff; text-align: center; }
         label { display: block; margin: 15px 0 5px; font-size: 13px; color: #8a92a0; }
         input, select { width: 100%; padding: 10px; border-radius: 6px; background: #1e2128; border: 1px solid #333a45; color: #fff; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; margin-top: 20px; background: #2a3a5a; border: 1px solid #5b9aff; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; }
+        button { width: 100%; padding: 12px; margin-top: 20px; background: #2a3a5a; border: 1px solid #5b9aff; color: #fff; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: .1s; }
         button:hover { background: #3a5a8a; }
+        button:disabled { opacity: 0.5; cursor: default; }
         #status { margin-top: 15px; font-size: 12px; text-align: center; color: #ffaa5b; }
+        
+        .divider { display: flex; align-items: center; text-align: center; margin: 25px 0; color: #6a7280; font-size: 12px; }
+        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #333a45; }
+        .divider::before { margin-right: 10px; }
+        .divider::after { margin-left: 10px; }
+        
+        .drop-zone { border: 2px dashed #333a45; border-radius: 8px; padding: 30px; text-align: center; color: #8a92a0; cursor: pointer; transition: .2s; background: #14171c; }
+        .drop-zone.dragover { border-color: #5b9aff; background: #1e2432; color: #e0e0e0; }
     </style>
 </head>
 <body>
@@ -19,10 +28,10 @@
         <h1>Создать турнир</h1>
         <label>Ссылка на Google Sheets:</label>
         <input type="text" id="gurl" placeholder="https://docs.google.com/spreadsheets/d/...">
-
+        
         <label>Лист (Тур):</label>
         <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
-
+        
         <label>Размер команды:</label>
         <select id="tsize">
             <option value="3">3 на 3</option>
@@ -45,10 +54,33 @@
         </select>
 
         <button onclick="fetchSheets()">Загрузить листы</button>
-        <button onclick="generate()" style="background:#1e3a20; border-color:#6cd88a; margin-top:10px;">Сгенерировать паринги</button>
+        <button id="genBtn" onclick="generate()" style="background:#1e3a20; border-color:#6cd88a; margin-top:10px;">Сгенерировать паринги</button>
         <div id="status"></div>
+
+        <div class="divider">ИЛИ ЗАГРУЗИТЕ ГОТОВЫЙ JSON</div>
+        
+        <div class="drop-zone" id="dropZone">
+            Перетащите сюда файл .json<br>или нажмите, чтобы выбрать
+            <input type="file" id="fileInput" accept=".json" style="display:none">
+        </div>
     </div>
+
     <script>
+        // Блокировка селекта формата для 3 и 5
+        document.getElementById('tsize').addEventListener('change', function() {
+            const formatSelect = document.getElementById('format');
+            const size = parseInt(this.value);
+            if (size === 3 || size === 5) {
+                formatSelect.value = 'champ_champ';
+                formatSelect.disabled = true;
+                formatSelect.style.opacity = '0.5';
+            } else {
+                formatSelect.disabled = false;
+                formatSelect.style.opacity = '1';
+                if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref';
+            }
+        });
+
         async function fetchSheets() {
             const url = document.getElementById('gurl').value;
             if (!url) return alert('Введите ссылку');
@@ -73,11 +105,13 @@
             const team_size = parseInt(document.getElementById('tsize').value);
             const format_type = document.getElementById('format').value;
             const scale = parseInt(document.getElementById('scale').value);
-
+            
             if (!url || !sheet_name) return alert('Заполните все поля');
             const st = document.getElementById('status');
+            const btn = document.getElementById('genBtn');
             st.innerText = 'Генерация (займет ~10-30 сек)...';
-
+            btn.disabled = true;
+            
             try {
                 const res = await fetch('/api/generate', {
                     method: 'POST',
@@ -86,13 +120,56 @@
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail);
-
-                // Сохраняем в localStorage и редиректим на визуализатор
+                
                 localStorage.setItem('wh40k_report', JSON.stringify(data));
                 window.location.href = '/static/viewer.html';
             } catch(e) {
                 st.innerText = 'Ошибка: ' + e.message;
+                btn.disabled = false;
             }
+        }
+
+        // Drag and Drop
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.json')) return alert('Выберите файл .json');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    // Проверяем, что это похоже на наш JSON
+                    if (!data.nodes || !data.root_id) throw new Error('Неверный формат файла');
+                    
+                    localStorage.setItem('wh40k_report', JSON.stringify(data));
+                    window.location.href = '/static/viewer.html';
+                } catch(err) {
+                    alert('Ошибка чтения JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
         }
     </script>
 </body>

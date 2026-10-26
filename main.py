@@ -18,6 +18,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 def read_root():
     return FileResponse("static/viewer.html")
 
+# ==========================================
+# НАСТРОЙКИ SUPABASE (из переменных окружения)
+# ==========================================
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
@@ -34,9 +37,15 @@ class GenerateRequest(BaseModel):
     format_type: str
     scale: int
 
+class SavePayload(BaseModel):
+    data: str
+
+# ==========================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ==========================================
 def _extract_gsheet_id(url):
     m = re.search(r'/spreadsheets/d/([a-zA-Z0-9_-]+)', url)
-    if not m: raise ValueError("Неверная ссылка")
+    if not m: raise ValueError("Неверная ссылка на Google Sheets")
     return m.group(1)
 
 def download_gsheet(url):
@@ -45,11 +54,16 @@ def download_gsheet(url):
     req = urllib.request.Request(export_url, headers={'User-Agent': 'Mozilla/5.0'})
     with urllib.request.urlopen(req, timeout=30) as r:
         data = r.read()
-    if not data.startswith(b'PK'): raise ValueError("Google вернул не xlsx. Проверьте доступ.")
+    if not data.startswith(b'PK'): 
+        raise ValueError("Google вернул не xlsx. Проверьте доступ к таблице.")
     fd, path = tempfile.mkstemp(suffix='.xlsx')
-    with os.fdopen(fd, 'wb') as f: f.write(data)
+    with os.fdopen(fd, 'wb') as f: 
+        f.write(data)
     return path
 
+# ==========================================
+# API ЭНДПОИНТЫ
+# ==========================================
 @app.post("/api/sheets")
 def get_sheets(req: SheetRequest):
     try:
@@ -68,9 +82,11 @@ def generate(req: GenerateRequest):
         os.remove(path)
         
         if req.sheet_name not in wb.sheetnames:
-            raise ValueError("Лист не найден")
+            raise ValueError(f"Лист '{req.sheet_name}' не найден. Доступные: {wb.sheetnames}")
         
         ws = wb[req.sheet_name]
+        
+        # Загружаем таблицу (валидация + считывание)
         players, enemies = minimax.validate_table(ws)
         our = [p[0] for p in players]
         our_row = {p[0]: p[1] for p in players}
@@ -78,7 +94,8 @@ def generate(req: GenerateRequest):
         cM = {e[0]: e[1] for e in enemies}
         cN = {e[0]: e[2] for e in enemies}
         
-        sm = {p: {} for p in our}; sn = {p: {} for p in our}
+        sm = {p: {} for p in our}
+        sn = {p: {} for p in our}
         for p in our:
             for e in enemy_names:
                 mv = ws.cell(row=our_row[p], column=cM[e]).value
@@ -86,18 +103,69 @@ def generate(req: GenerateRequest):
                 sm[p][e] = minimax._to_score(mv)
                 sn[p][e] = minimax._to_score(nv)
 
+        # Принудительно ставим champ_champ для 3 и 5 человек
         fmt = req.format_type
-        if req.team_size in (3, 5): fmt = 'champ_champ'
+        if req.team_size in (3, 5): 
+            fmt = 'champ_champ'
             
+        # Генерируем отчет
         report = minimax.generate_pairing(our, enemy_names, sm, sn, req.scale, fmt)
         
+        # Прикрепляем винрейты, если файл существует
         try:
             with open('winrates.json', 'r', encoding='utf-8') as f:
                 report['winrates'] = json.load(f)
-        except: pass
+        except: 
+            pass
         
         return report
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Ошибка при генерации: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/db/save")
+def db_save(req: SavePayload):
+    url = f"{SUPABASE_URL}/shared_room"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+    }
+    
+    payload = json.dumps([{
+        "id": "default_team_room",
+        "data": req.data
+    }]).encode("utf-8")
+
+    try:
+        r = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        urllib.request.urlopen(r)
+        return {"status": "ok"}
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        raise HTTPException(status_code=500, detail=f"Supabase Error: {error_body}")
+
+@app.get("/api/db/load")
+def db_load():
+    url = f"{SUPABASE_URL}/shared_room?id=eq.default_team_room&select=data"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}"
+    }
+    try:
+        r = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(r) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+            if rows and len(rows) > 0:
+                return Response(content=rows[0]['data'], media_type="application/json")
+            return Response(content="{}", media_type="application/json")
+    except urllib.error.HTTPError as e:
+        error_body = e.read().decode('utf-8')
+        raise HTTPException(status_code=500, detail=f"Supabase Error: {error_body}")
+
+# ==========================================
+# ЗАПУСК
+# ==========================================
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

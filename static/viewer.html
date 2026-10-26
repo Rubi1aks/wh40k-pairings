@@ -208,6 +208,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     </div>
     
     <button class="btn primary" onclick="openGenModal()" style="width:100%;margin-bottom:10px; background:#1e3a20; border-color:#6cd88a; color:#fff;">⚙️ Сгенерировать паринги</button>
+    <button class="btn" onclick="updateWinrates()" style="width:100%; margin-bottom:10px;">🔄 Обновить винрейты</button>
     
     <h2 style="margin-top:20px;">Показатели</h2>
     <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:20px;">
@@ -406,12 +407,54 @@ function resolveFaction(label) {
 async function loadWinRates() {
   if (WINRATES) return;
   try {
+    // Пытаемся загрузить из БД
+    const r = await fetch('/api/db/winrates');
+    if (r.ok) {
+      const data = await r.json();
+      if (data && data.matrix) {
+        WINRATES = data;
+        return;
+      }
+    }
+  } catch (e) {}
+  
+  // Фолбэк на локальный файл, если в БД пусто
+  try {
     const r = await fetch('winrates.json', { cache: 'no-store' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (!data || typeof data !== 'object' || !data.matrix) throw new Error('нет поля matrix');
     WINRATES = data;
   } catch (e) { WINRATES = null; console.warn('winrates.json недоступен:', e.message); }
+}
+
+async function updateWinrates() {
+  const btn = event.target;
+  const orig = btn.innerText;
+  btn.innerText = 'Обновление...';
+  btn.disabled = true;
+  
+  try {
+    const res = await fetch('winrates.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('Файл winrates.json не найден на сервере');
+    const data = await res.json();
+    
+    const resDb = await fetch('/api/db/winrates', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ data: JSON.stringify(data) })
+    });
+    if (!resDb.ok) throw new Error('Ошибка сохранения в БД');
+    
+    WINRATES = data;
+    render();
+    toast('Винрейты обновлены и сохранены в облако!');
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+  } finally {
+    btn.innerText = orig;
+    btn.disabled = false;
+  }
 }
 
 function getWinRate(factionA, factionB) {

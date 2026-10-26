@@ -3,8 +3,6 @@ from collections import namedtuple
 from itertools import combinations
 
 THRESHOLD = 56.0
-EXPECTED_PLAYERS = 6
-EXPECTED_ENEMIES = 6
 MIN_SCORE = 0.0
 MAX_SCORE = 10.0
 
@@ -25,8 +23,6 @@ def validate_table(ws):
         players.append((s, r))
         r += 1
 
-    # Для динамических размеров мы не проверяем жестко на 6, 
-    # но проверяем, что они есть
     if not players:
         raise ValidationError("Не найдены игроки в столбце A.")
 
@@ -56,11 +52,8 @@ def _to_score(v):
     except: return 0.0
 
 def map_score(score, scale):
-    """Переводит оценку (0..scale) в очки (0..20)."""
-    if scale == 10:
-        return score * 2.0
-    elif scale == 5:
-        return score * 4.0
+    if scale == 10: return score * 2.0
+    elif scale == 5: return score * 4.0
     elif scale == 7:
         table = {0:0, 1:3, 2:5, 3:7, 4:10, 5:13, 6:17, 7:20}
         return float(table.get(int(round(score)), 0))
@@ -101,7 +94,6 @@ class Analyzer:
             return [(e, [], 0.0, st._replace(D_enemy=e, phase='offers_our')) for e in sorted(st.enemy_hand)]
         if ph == 'offers_our':
             rest = sorted(st.our_hand - {st.D_our})
-            # Если осталось меньше 2, предлагаем 1
             k = min(2, len(rest))
             return [(off, [], 0.0, st._replace(our_offers=frozenset(off), phase='offers_enemy')) for off in combinations(rest, k)]
         if ph == 'offers_enemy':
@@ -124,27 +116,44 @@ class Analyzer:
                 nh = frozenset(st.our_hand - {st.D_our, u})
                 ne = frozenset(st.enemy_hand - {st.D_enemy, st.X})
                 
+                # Проверяем, остались ли дефендеры. Если осталось 2 и более — идем на следующий круг
+                # (например, для 8х8, где 3 дефа).
                 if len(nh) >= 2:
                     child = State(nh, ne, st.cycle + 1, 'def_our', None, None, None, None, None, None)
                 else:
                     # Финальная стадия
                     our_ref = next(iter(st.our_offers - {u}))
-                    our_unt = next(iter(st.our_hand - {st.D_our} - st.our_offers))
                     en_ref = next(iter(st.enemy_offers - {st.X}))
-                    en_unt = next(iter(st.enemy_hand - {st.D_enemy} - st.enemy_offers))
                     
-                    if self.format_type == 'champ_champ':
-                        sc = self.s_my(our_unt, en_unt)
-                        sr = self.s_not(our_ref, en_ref)
-                        pairs.append([our_unt, en_unt, 2, sc])
-                        pairs.append([our_ref, en_ref, 3, sr])
+                    our_unt_set = st.our_hand - {st.D_our} - st.our_offers
+                    en_unt_set = st.enemy_hand - {st.D_enemy} - st.enemy_offers
+                    
+                    if not our_unt_set or not en_unt_set:
+                        # Рука пуста (3х3). Отказник играет с Отказником.
+                        # Отказники считаются по колонке "Не мой" (как атакующие)
+                        s_rr = self.s_not(our_ref, en_ref)
+                        delta += s_rr
+                        pairs.append([our_ref, en_ref, 2, s_rr])
                     else:
-                        sc = self.s_my(our_unt, en_ref)
-                        sr = self.s_not(our_ref, en_unt)
-                        pairs.append([our_unt, en_ref, 2, sc])
-                        pairs.append([our_ref, en_unt, 3, sr])
+                        # Есть Чемпионы (6х6, 8х8)
+                        our_unt = next(iter(our_unt_set))
+                        en_unt = next(iter(en_unt_set))
                         
-                    delta += sc + sr
+                        if self.format_type == 'champ_champ':
+                            # Чемпион-Чемпион (Мой), Отказник-Отказник (Не мой)
+                            sc = self.s_my(our_unt, en_unt)
+                            sr = self.s_not(our_ref, en_ref)
+                            pairs.append([our_unt, en_unt, 2, sc])
+                            pairs.append([our_ref, en_ref, 3, sr])
+                        else:
+                            # Чемпион-Отказник (Мой), Отказник-Чемпион (Не мой)
+                            sc = self.s_my(our_unt, en_ref)
+                            sr = self.s_not(our_ref, en_unt)
+                            pairs.append([our_unt, en_ref, 2, sc])
+                            pairs.append([our_ref, en_unt, 3, sr])
+                            
+                        delta += sc + sr
+                    
                     child = None
                 
                 out.append((u, pairs, delta, child))

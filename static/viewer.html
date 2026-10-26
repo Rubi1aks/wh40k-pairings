@@ -431,26 +431,25 @@ async function loadWinRates() {
 async function updateWinrates() {
   const btn = event.target;
   const orig = btn.innerText;
-  btn.innerText = 'Обновление...';
+  btn.innerText = 'Парсинг (30-40 сек)...';
   btn.disabled = true;
   
   try {
-    const res = await fetch('winrates.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error('Файл winrates.json не найден на сервере');
+    const res = await fetch('/api/db/winrates/recalc', { method: 'POST' });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Ошибка сервера');
     
-    const resDb = await fetch('/api/db/winrates', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ data: JSON.stringify(data) })
-    });
-    if (!resDb.ok) throw new Error('Ошибка сохранения в БД');
+    WINRATES = {
+      matrix: data.matrix,
+      source: 'https://listhammer.info',
+      scraped_at: new Date().toISOString(),
+      include_rtt: true
+    };
     
-    WINRATES = data;
     render();
     toast('Винрейты обновлены и сохранены в облако!');
   } catch(e) {
-    alert('Ошибка: ' + e.message);
+    alert('Ошибка парсинга: ' + e.message);
   } finally {
     btn.innerText = orig;
     btn.disabled = false;

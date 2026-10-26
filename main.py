@@ -122,6 +122,38 @@ def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/db/winrates/recalc")
+def recalc_winrates():
+    try:
+        matrix = minimax.scrape_winrates(log=print)
+        
+        payload = {
+            'source': minimax.LH_BASE,
+            'scraped_at': __import__('time').strftime('%Y-%m-%dT%H:%M:%S'),
+            'include_rtt': minimax.WINRATES_INCLUDE_RTTS,
+            'factions': [name for _, name in minimax.WINRATES_FACTIONS],
+            'matrix': matrix,
+        }
+        json_str = json.dumps(payload, ensure_ascii=False)
+        
+        url = f"{SUPABASE_URL}/winrates_cache"
+        headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        db_payload = json.dumps([{"id": "default_winrates", "data": json_str}]).encode("utf-8")
+        r = urllib.request.Request(url, data=db_payload, headers=headers, method="POST")
+        urllib.request.urlopen(r)
+        
+        with open('winrates.json', 'w', encoding='utf-8') as f:
+            f.write(json_str)
+            
+        return {"status": "ok", "matrix": matrix}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/db/save")
 def db_save(req: SavePayload):
     url = f"{SUPABASE_URL}/shared_room"

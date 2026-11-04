@@ -992,7 +992,17 @@ window.addEventListener('drop', (e) => {
 
   try {
     const res = await fetch('/api/db/load');
-    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(`Сервер просыпается или временно недоступен (код ${res.status}). Подождите 30 секунд и нажмите F5.`);
+    }
+    
+  const text = await res.text();
+  let data = {};
+  try {
+      data = JSON.parse(text);
+    } catch(e) {
+      throw new Error('Сервер вернул некорректный ответ. Возможно, он перезагружается. Подождите и обновите страницу.');
+    }
     
     document.body.removeChild(loader);
 
@@ -1011,7 +1021,12 @@ window.addEventListener('drop', (e) => {
     
     bestFromStart();
   } catch (e) {
-    document.body.innerHTML = `<div style="color:#f88;padding:50px;font-family:system-ui;">Ошибка загрузки из БД: ${e.message}</div>`;
+    document.body.innerHTML = `
+      <div style="color:#f88;padding:50px;font-family:system-ui; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh;">
+        <h2>Ошибка загрузки</h2>
+        <p>${e.message}</p>
+        <button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; cursor:pointer; background:#2a3a5a; color:#fff; border:none; border-radius:5px;">Обновить страницу</button>
+      </div>`;
   }
 })();
 </script>

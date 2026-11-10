@@ -119,7 +119,7 @@ class Analyzer:
                 nh = frozenset(st.our_hand - {st.D_our, u})
                 ne = frozenset(st.enemy_hand - {st.D_enemy, st.X})
                 
-                if len(nh) >= 2:
+                if len(nh) >= 3:
                     child = State(nh, ne, st.cycle + 1, 'def_our', None, None, None, None, None, None)
                 else:
                     # Безопасная финальная стадия (для 3х3, 4х4, 5х5, 6х6, 8х8)

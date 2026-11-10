@@ -244,8 +244,8 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     <label class="chk accent" id="chkManual" title="Если включено — клик по плашке не тянет за собой автозаполнение ниже.">
       <input type="checkbox" onchange="toggleManual(this.checked)"> Ручное заполнение
     </label>
-     <!-- Кнопка Админки -->
-<button onclick="openAdmin()" style="position:fixed;bottom:5px;right:5px;background:transparent;border:none;color:#333;font-size:10px;cursor:pointer;opacity:0.3;" title="Админ-панель">●</button>
+    
+    <!-- АДМИНКА -->
     <div style="margin-top: 30px; text-align: center;">
       <button onclick="openAdmin()" style="background: transparent; border: none; color: #2a2e38; font-size: 20px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#8a92a0'" onmouseout="this.style.color='#2a2e38'" title="Админ-панель">●</button>
     </div>
@@ -318,7 +318,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     <label>Лист (Тур):</label>
     <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
     <label>Размер команды:</label>
-      <select id="tsize" onchange="toggleFormatSelect()">
+    <select id="tsize" onchange="toggleFormatSelect()">
       <option value="3">3 на 3</option>
       <option value="4">4 на 4</option>
       <option value="5">5 на 5</option>
@@ -347,7 +347,6 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
 <!-- Модалка Админки -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal-card">
@@ -365,9 +364,9 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     </div>
   </div>
 </div>
-<div class="drop-overlay" id="dropOverlay">Отпустите файл для загрузки</div>
 
- 
+<div class="toast" id="toast"></div>
+<div class="drop-overlay" id="dropOverlay">Отпустите файл для загрузки</div>
 
 <script>
 let R = null;
@@ -744,18 +743,6 @@ function buildMetricsBadges(stats) {
   if (METRICS.freq) { const m = Math.round(stats.min); const freq = (stats.hist[m] || 0) / stats.count * 100; parts.push(`<span class="badge freq" title="Частота минимума"><span class="k">min%</span>${freq.toFixed(0)}%</span>`); }
   return `<div class="metrics">${parts.join('')}</div>`;
 }
-  
-  const head = document.createElement('div'); head.className = 'cycle-header'; 
-  head.innerHTML = `<span class="toggle">▼</span> Цикл ${cycleNum}`; 
-  head.onclick = () => { collapsedCycles[cycleNum] = true; renderPath(); }; 
-  wrap.appendChild(head);
-  
-  items.forEach(e => { 
-    if (e.kind === 'confirmed') wrap.appendChild(renderStep(e.st, e.i, e.idx)); 
-    else wrap.appendChild(renderPendingStep(e.nodeId, e.idx)); 
-  });
-  return wrap;
-}
 
 function renderPath() {
   const el = document.getElementById('path'); el.innerHTML = ''; const entries = [];
@@ -849,36 +836,20 @@ function totalAccumulated() { let s = 0; for (const st of path) s += N(st.nodeId
 function collectPairsWithIdx() { const out = []; path.forEach((st, i) => { const o = N(st.nodeId).o[st.optIdx]; if (o.p) for (const p of o.p) out.push({pair: p, stepIdx: i}); }); return out; }
 
 function renderBoard() {
-  const items = collectPairsWithIdx(); 
-  const el = document.getElementById('pairs'); 
-  el.innerHTML = '';
-  
-  // Рисуем ровно столько строк, сколько пар есть (без пустых строк "—")
+  const items = collectPairsWithIdx(); const el = document.getElementById('pairs'); el.innerHTML = '';
   for (let i = 0; i < items.length; i++) {
-    const {pair, stepIdx} = items[i]; 
-    const [our, en, kind, score] = pair; 
-    const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
+    const row = document.createElement('div'); row.className = 'pair';
+    const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
     const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
     
-    const row = document.createElement('div'); row.className = 'pair';
     if (score < 10) row.classList.add('bottleneck');
-    
-    const wr = getWinRate(our, en); 
-    const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; 
-    const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); 
-    const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
+    const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
     
     row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
-    row.onclick = () => scrollToStep(stepIdx); 
-    row.style.cursor = 'pointer';
+    row.onclick = () => scrollToStep(stepIdx); row.style.cursor = 'pointer';
     el.appendChild(row);
   }
-  
-  const acc = totalAccumulated(); 
-  const cur = childOfLast(path); 
-  const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); 
-  const g = acc + curMin; 
-  const meets = g >= THRESH;
+  const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= THRESH;
   document.getElementById('totals').innerHTML = `<div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div><div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div><div class="bar"><div style="width:${Math.min(100, g/(R.players.length*2))}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
 }
 
@@ -941,16 +912,8 @@ function closeGenModal() { document.getElementById('genModal').classList.remove(
 function toggleFormatSelect() {
   const formatSelect = document.getElementById('format');
   const size = parseInt(document.getElementById('tsize').value);
-  if (size === 3 || size === 5) { 
-    formatSelect.value = 'champ_champ'; 
-    formatSelect.disabled = true; 
-    formatSelect.style.opacity = '0.5'; 
-  }
-  else { 
-    formatSelect.disabled = false; 
-    formatSelect.style.opacity = '1'; 
-    if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref'; 
-  }
+  if (size === 3 || size === 5) { formatSelect.value = 'champ_champ'; formatSelect.disabled = true; formatSelect.style.opacity = '0.5'; }
+  else { formatSelect.disabled = false; formatSelect.style.opacity = '1'; if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref'; }
 }
 
 async function fetchSheets() {
@@ -1085,6 +1048,7 @@ async function deleteCurrentRoom() {
     alert('Не удалось удалить комнату: ' + e.message);
   }
 }
+
 /* ---------- Админка ---------- */
 let ADMIN_PASS = '';
 
@@ -1153,7 +1117,6 @@ async function loadAdminRooms() {
     html += '<tr style="color:#8a92a0; border-bottom:1px solid #333;"><th style="text-align:left; padding:5px;">Комната</th><th style="text-align:right; padding:5px;">Действие</th></tr>';
     
     data.rooms.forEach(r => {
-      // Форматируем дату (отрезаем лишнее)
       const dateStr = r.created_at ? r.created_at.replace('T', ' ').substring(0, 16) : '—';
       html += `<tr style="border-bottom:1px solid #2a2e38;">
         <td style="padding:8px 5px;">
@@ -1182,11 +1145,12 @@ async function adminDeleteRoom(roomId) {
       const data = await res.json();
       throw new Error(data.detail || 'Ошибка удаления');
     }
-    loadAdminRooms(); // Обновляем список
+    loadAdminRooms();
   } catch (e) {
     alert(e.message);
   }
 }
+
 /* ---------- init ---------- */
 (async function init() {
   await loadWinRates();

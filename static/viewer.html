@@ -244,6 +244,11 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     <label class="chk accent" id="chkManual" title="Если включено — клик по плашке не тянет за собой автозаполнение ниже.">
       <input type="checkbox" onchange="toggleManual(this.checked)"> Ручное заполнение
     </label>
+     <!-- Кнопка Админки -->
+<button onclick="openAdmin()" style="position:fixed;bottom:5px;right:5px;background:transparent;border:none;color:#333;font-size:10px;cursor:pointer;opacity:0.3;" title="Админ-панель">●</button>
+    <div style="margin-top: 30px; text-align: center;">
+      <button onclick="openAdmin()" style="background: transparent; border: none; color: #2a2e38; font-size: 20px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#8a92a0'" onmouseout="this.style.color='#2a2e38'" title="Админ-панель">●</button>
+    </div>
   </aside>
 
   <main class="main">
@@ -343,9 +348,6 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 </div>
 
 <div class="toast" id="toast"></div>
-  <!-- Кнопка Админки -->
-<button onclick="openAdmin()" style="position:fixed;bottom:5px;right:5px;background:transparent;border:none;color:#333;font-size:10px;cursor:pointer;opacity:0.3;" title="Админ-панель">●</button>
-
 <!-- Модалка Админки -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal-card">

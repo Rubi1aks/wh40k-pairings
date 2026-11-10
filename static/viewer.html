@@ -744,17 +744,6 @@ function buildMetricsBadges(stats) {
   if (METRICS.freq) { const m = Math.round(stats.min); const freq = (stats.hist[m] || 0) / stats.count * 100; parts.push(`<span class="badge freq" title="Частота минимума"><span class="k">min%</span>${freq.toFixed(0)}%</span>`); }
   return `<div class="metrics">${parts.join('')}</div>`;
 }
-
-function createCycleGroup(cycleNum, items) {
-  const wrap = document.createElement('div'); wrap.className = 'cycle-group';
-  const hasConfirmed = items.some(x => x.kind === 'confirmed');
-  
-  if (collapsedCycles[cycleNum] && hasConfirmed) { 
-    const bar = document.createElement('div'); bar.className = 'cycle-collapsed'; 
-    bar.innerHTML = buildCycleSummary({cycle: cycleNum, items}); 
-    bar.onclick = () => { collapsedCycles[cycleNum] = false; renderPath(); }; 
-    wrap.appendChild(bar); return wrap; 
-  }
   
   const head = document.createElement('div'); head.className = 'cycle-header'; 
   head.innerHTML = `<span class="toggle">▼</span> Цикл ${cycleNum}`; 
@@ -770,56 +759,20 @@ function createCycleGroup(cycleNum, items) {
 
 function renderPath() {
   const el = document.getElementById('path'); el.innerHTML = ''; const entries = [];
-  
-  if (!path.length) {
-    entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
-  } else {
-    // Группируем шаги по циклам, но обрываем цикл, если дефендер пустой
-    let currentCycle = 1;
-    let cycleItems = [];
-    
-    path.forEach((st, i) => {
-      const node = N(st.nodeId);
-      
-      // Если это шаг с дефендером, и его нет (или мы перешли на новый шаг после финала)
-      if (node.ph === 'def_our' && i > 0 && node.cycle > currentCycle) {
-        // Финализируем прошлый цикл
-        if (cycleItems.length) {
-          el.appendChild(createCycleGroup(currentCycle, cycleItems));
-        }
-        currentCycle = node.cycle;
-        cycleItems = [];
-      }
-      
-      cycleItems.push({kind: 'confirmed', st, i, idx: i + 1});
-      
-      // Если текущий шаг — финал (нет D_our), цикл заканчивается на этом шаге
-      if (!node.D_our) {
-        el.appendChild(createCycleGroup(currentCycle, cycleItems));
-        cycleItems = [];
-      }
-    });
-    
-    if (cycleItems.length) {
-      el.appendChild(createCycleGroup(currentCycle, cycleItems));
-    }
-    
-    // Добавляем pending шаг, если есть ручной режим
-    if (manualMode) {
-      const last = path[path.length - 1];
-      const childId = N(last.nodeId).o[last.optIdx].c;
-      if (childId !== -1 && childId !== null) {
-        const childNode = N(childId);
-        // Если это начало нового цикла (def_our) или финал
-        if (childNode.ph === 'def_our' && !childNode.D_our) {
-             // Если рука пуста, это финал
-             el.appendChild(createCycleGroup(currentCycle + 1, [{kind: 'pending', nodeId: childId, idx: path.length + 1}]));
-        } else {
-             el.appendChild(createCycleGroup(currentCycle, [{kind: 'pending', nodeId: childId, idx: path.length + 1}]));
-        }
-      }
-    }
+  if (!path.length) entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
+  else {
+    path.forEach((st, i) => entries.push({kind: 'confirmed', st, i, idx: i + 1}));
+    if (manualMode) { const last = path[path.length - 1]; const childId = N(last.nodeId).o[last.optIdx].c; if (childId !== -1 && childId !== null) entries.push({kind: 'pending', nodeId: childId, idx: path.length + 1}); }
   }
+  const groups = [];
+  entries.forEach(e => {
+    const nodeId = e.kind === 'confirmed' ? e.st.nodeId : e.nodeId;
+    const c = N(nodeId).c;
+    if (!groups.length || groups[groups.length-1].cycle !== c)
+      groups.push({cycle: c, items: []});
+    groups[groups.length-1].items.push(e);
+  });
+  groups.forEach(g => el.appendChild(renderCycleGroup(g)));
 }
 
 function renderCycleGroup(g) {

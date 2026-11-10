@@ -108,21 +108,25 @@ def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class SaveRoomPayload(BaseModel):
+    room_id: str
+    data: str
+
 @app.post("/api/db/save")
-def db_save(req: SavePayload):
+def db_save(req: SaveRoomPayload):
     url = f"{SUPABASE_URL}/shared_room"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"}
-    payload = json.dumps([{"id": "default_team_room", "data": req.data}]).encode("utf-8")
+    payload = json.dumps([{"room_id": req.room_id, "data": req.data}]).encode("utf-8")
     try:
         r = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         urllib.request.urlopen(r)
         return {"status": "ok"}
-    except urllib.error.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Supabase Error: {e.read().decode('utf-8')}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/db/load")
-def db_load():
-    url = f"{SUPABASE_URL}/shared_room?id=eq.default_team_room&select=data"
+def db_load(room_id: str = "default"):
+    url = f"{SUPABASE_URL}/shared_room?room_id=eq.{room_id}&select=data"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
     try:
         r = urllib.request.Request(url, headers=headers)
@@ -131,8 +135,19 @@ def db_load():
             if rows and len(rows) > 0:
                 return Response(content=rows[0]['data'], media_type="application/json")
             return Response(content="{}", media_type="application/json")
-    except urllib.error.HTTPError as e:
-        raise HTTPException(status_code=500, detail=f"Supabase Error: {e.read().decode('utf-8')}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/db/delete/{room_id}")
+def db_delete(room_id: str):
+    url = f"{SUPABASE_URL}/shared_room?room_id=eq.{room_id}"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers, method="DELETE")
+        urllib.request.urlopen(r)
+        return {"status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/db/winrates")
 def db_get_winrates():

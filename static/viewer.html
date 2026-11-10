@@ -745,16 +745,81 @@ function buildMetricsBadges(stats) {
   return `<div class="metrics">${parts.join('')}</div>`;
 }
 
+function createCycleGroup(cycleNum, items) {
+  const wrap = document.createElement('div'); wrap.className = 'cycle-group';
+  const hasConfirmed = items.some(x => x.kind === 'confirmed');
+  
+  if (collapsedCycles[cycleNum] && hasConfirmed) { 
+    const bar = document.createElement('div'); bar.className = 'cycle-collapsed'; 
+    bar.innerHTML = buildCycleSummary({cycle: cycleNum, items}); 
+    bar.onclick = () => { collapsedCycles[cycleNum] = false; renderPath(); }; 
+    wrap.appendChild(bar); return wrap; 
+  }
+  
+  const head = document.createElement('div'); head.className = 'cycle-header'; 
+  head.innerHTML = `<span class="toggle">▼</span> Цикл ${cycleNum}`; 
+  head.onclick = () => { collapsedCycles[cycleNum] = true; renderPath(); }; 
+  wrap.appendChild(head);
+  
+  items.forEach(e => { 
+    if (e.kind === 'confirmed') wrap.appendChild(renderStep(e.st, e.i, e.idx)); 
+    else wrap.appendChild(renderPendingStep(e.nodeId, e.idx)); 
+  });
+  return wrap;
+}
+
 function renderPath() {
   const el = document.getElementById('path'); el.innerHTML = ''; const entries = [];
-  if (!path.length) entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
-  else {
-    path.forEach((st, i) => entries.push({kind: 'confirmed', st, i, idx: i + 1}));
-    if (manualMode) { const last = path[path.length - 1]; const childId = N(last.nodeId).o[last.optIdx].c; if (childId !== -1 && childId !== null) entries.push({kind: 'pending', nodeId: childId, idx: path.length + 1}); }
+  
+  if (!path.length) {
+    entries.push({kind: 'pending', nodeId: R.root_id, idx: 1});
+  } else {
+    // Группируем шаги по циклам, но обрываем цикл, если дефендер пустой
+    let currentCycle = 1;
+    let cycleItems = [];
+    
+    path.forEach((st, i) => {
+      const node = N(st.nodeId);
+      
+      // Если это шаг с дефендером, и его нет (или мы перешли на новый шаг после финала)
+      if (node.ph === 'def_our' && i > 0 && node.cycle > currentCycle) {
+        // Финализируем прошлый цикл
+        if (cycleItems.length) {
+          el.appendChild(createCycleGroup(currentCycle, cycleItems));
+        }
+        currentCycle = node.cycle;
+        cycleItems = [];
+      }
+      
+      cycleItems.push({kind: 'confirmed', st, i, idx: i + 1});
+      
+      // Если текущий шаг — финал (нет D_our), цикл заканчивается на этом шаге
+      if (!node.D_our) {
+        el.appendChild(createCycleGroup(currentCycle, cycleItems));
+        cycleItems = [];
+      }
+    });
+    
+    if (cycleItems.length) {
+      el.appendChild(createCycleGroup(currentCycle, cycleItems));
+    }
+    
+    // Добавляем pending шаг, если есть ручной режим
+    if (manualMode) {
+      const last = path[path.length - 1];
+      const childId = N(last.nodeId).o[last.optIdx].c;
+      if (childId !== -1 && childId !== null) {
+        const childNode = N(childId);
+        // Если это начало нового цикла (def_our) или финал
+        if (childNode.ph === 'def_our' && !childNode.D_our) {
+             // Если рука пуста, это финал
+             el.appendChild(createCycleGroup(currentCycle + 1, [{kind: 'pending', nodeId: childId, idx: path.length + 1}]));
+        } else {
+             el.appendChild(createCycleGroup(currentCycle, [{kind: 'pending', nodeId: childId, idx: path.length + 1}]));
+        }
+      }
+    }
   }
-  const groups = [];
-  entries.forEach(e => { const nodeId = e.kind === 'confirmed' ? e.st.nodeId : e.nodeId; const c = N(nodeId).c; if (!groups.length || groups[groups.length-1].cycle !== c) groups.push({cycle: c, items: []}); groups[groups.length-1].items.push(e); });
-  groups.forEach(g => el.appendChild(renderCycleGroup(g)));
 }
 
 function renderCycleGroup(g) {
@@ -831,22 +896,36 @@ function totalAccumulated() { let s = 0; for (const st of path) s += N(st.nodeId
 function collectPairsWithIdx() { const out = []; path.forEach((st, i) => { const o = N(st.nodeId).o[st.optIdx]; if (o.p) for (const p of o.p) out.push({pair: p, stepIdx: i}); }); return out; }
 
 function renderBoard() {
-  const items = collectPairsWithIdx(); const el = document.getElementById('pairs'); el.innerHTML = '';
-  for (let i = 0; i < R.players.length; i++) {
-    const row = document.createElement('div'); row.className = 'pair' + (i >= items.length ? ' empty' : '');
-    if (i < items.length) {
-      const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
-      const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
-      
-      if (score < 10) row.classList.add('bottleneck');
-      const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
-      
-      row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
-      row.onclick = () => scrollToStep(stepIdx); row.style.cursor = 'pointer';
-    } else { row.innerHTML = `<div class="cell ours">—</div><div class="vs">vs</div><div class="cell theirs">—</div><div class="sc mid">—</div><div class="wr na">—</div>`; }
+  const items = collectPairsWithIdx(); 
+  const el = document.getElementById('pairs'); 
+  el.innerHTML = '';
+  
+  // Рисуем ровно столько строк, сколько пар есть (без пустых строк "—")
+  for (let i = 0; i < items.length; i++) {
+    const {pair, stepIdx} = items[i]; 
+    const [our, en, kind, score] = pair; 
+    const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
+    const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
+    
+    const row = document.createElement('div'); row.className = 'pair';
+    if (score < 10) row.classList.add('bottleneck');
+    
+    const wr = getWinRate(our, en); 
+    const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; 
+    const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); 
+    const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
+    
+    row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
+    row.onclick = () => scrollToStep(stepIdx); 
+    row.style.cursor = 'pointer';
     el.appendChild(row);
   }
-  const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= THRESH;
+  
+  const acc = totalAccumulated(); 
+  const cur = childOfLast(path); 
+  const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); 
+  const g = acc + curMin; 
+  const meets = g >= THRESH;
   document.getElementById('totals').innerHTML = `<div class="trow"><span>Набрано по линии</span><b>${fmt(acc)}</b></div><div class="trow"><span>Гарантия минимум</span><b class="${meets?'pos':'neg'}">${fmt(g)}</b></div><div class="bar"><div style="width:${Math.min(100, g/(R.players.length*2))}%;background:${meets?'#6cd88a':'#ff8080'}"></div></div>`;
 }
 

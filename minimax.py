@@ -122,17 +122,31 @@ class Analyzer:
                 if len(nh) >= 2:
                     child = State(nh, ne, st.cycle + 1, 'def_our', None, None, None, None, None, None)
                 else:
-                    our_ref = next(iter(st.our_offers - {u}))
-                    en_ref = next(iter(st.enemy_offers - {st.X}))
+                    # Безопасная финальная стадия (для 3х3, 4х4, 5х5, 6х6, 8х8)
+                    rem_our_offers = st.our_offers - {u}
+                    rem_en_offers = st.enemy_offers - {st.X}
+                    
+                    our_ref = next(iter(rem_our_offers)) if rem_our_offers else None
+                    en_ref = next(iter(rem_en_offers)) if rem_en_offers else None
                     
                     our_unt_set = st.our_hand - {st.D_our} - st.our_offers
                     en_unt_set = st.enemy_hand - {st.D_enemy} - st.enemy_offers
                     
-                    if not our_unt_set or not en_unt_set:
+                    if our_ref is None and en_ref is None:
+                        # 4x4 или аналоги, где всего 1 атакующий
+                        if our_unt_set and en_unt_set:
+                            our_unt = next(iter(our_unt_set))
+                            en_unt = next(iter(en_unt_set))
+                            sc = self.s_my(our_unt, en_unt)
+                            delta += sc
+                            pairs.append([our_unt, en_unt, 2, sc])
+                    elif not our_unt_set or not en_unt_set:
+                        # Рука пуста (3х3). Отказник играет с Отказником.
                         s_rr = self.s_not(our_ref, en_ref)
                         delta += s_rr
                         pairs.append([our_ref, en_ref, 2, s_rr])
                     else:
+                        # Есть Чемпионы (6х6, 8х8)
                         our_unt = next(iter(our_unt_set))
                         en_unt = next(iter(en_unt_set))
                         

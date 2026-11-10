@@ -313,8 +313,9 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
     <label>Лист (Тур):</label>
     <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
     <label>Размер команды:</label>
-    <select id="tsize" onchange="toggleFormatSelect()">
+      <select id="tsize" onchange="toggleFormatSelect()">
       <option value="3">3 на 3</option>
+      <option value="4">4 на 4</option>
       <option value="5">5 на 5</option>
       <option value="6" selected>6 на 6</option>
       <option value="8">8 на 8</option>
@@ -884,8 +885,16 @@ function closeGenModal() { document.getElementById('genModal').classList.remove(
 function toggleFormatSelect() {
   const formatSelect = document.getElementById('format');
   const size = parseInt(document.getElementById('tsize').value);
-  if (size === 3 || size === 5) { formatSelect.value = 'champ_champ'; formatSelect.disabled = true; formatSelect.style.opacity = '0.5'; }
-  else { formatSelect.disabled = false; formatSelect.style.opacity = '1'; if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref'; }
+  if (size === 3 || size === 5) { 
+    formatSelect.value = 'champ_champ'; 
+    formatSelect.disabled = true; 
+    formatSelect.style.opacity = '0.5'; 
+  }
+  else { 
+    formatSelect.disabled = false; 
+    formatSelect.style.opacity = '1'; 
+    if (formatSelect.value === 'champ_champ') formatSelect.value = 'champ_ref'; 
+  }
 }
 
 async function fetchSheets() {

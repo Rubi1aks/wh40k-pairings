@@ -108,6 +108,42 @@ def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class AdminRequest(BaseModel):
+    password: str
+
+@app.post("/api/admin/rooms")
+def get_admin_rooms(req: AdminRequest):
+    # Проверка пароля (берем из Environment Variables)
+    if req.password != os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+
+    # Запрашиваем все комнаты из базы
+    url = f"{SUPABASE_URL}/shared_room?select=room_id,created_at"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(r) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+            # Считаем размер данных (чтобы понять, пустая комната или нет)
+            # Для простоты берем только id и дату
+            return {"rooms": rows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/admin/rooms/{room_id}")
+def delete_admin_room(room_id: str, password: str):
+    if password != os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+
+    url = f"{SUPABASE_URL}/shared_room?room_id=eq.{room_id}"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers, method="DELETE")
+        urllib.request.urlopen(r)
+        return {"status": "deleted"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 class SaveRoomPayload(BaseModel):
     room_id: str
     data: str

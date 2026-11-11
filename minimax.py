@@ -29,22 +29,28 @@ def validate_table(ws):
     if not players:
         raise ValidationError("Не найдены игроки в столбце A.")
 
+    def is_def(lbl):
+        s = str(lbl).strip().lower()
+        return "мой" in s or "деф" in s or "защ" in s
+        
+    def is_atk(lbl):
+        s = str(lbl).strip().lower()
+        return "не мой" in s or "атк" in s or "атак" in s or "напад" in s
+
     enemies = []
     for c in range(2, ws.max_column + 1):
         lab = ws.cell(row=2, column=c).value
         if lab is None: continue
-        ls = str(lab).strip().lower()
-        if "не мой" in ls: continue
-        if "мой" in ls:
+        
+        if is_def(lab):
             nxt = ws.cell(row=2, column=c + 1).value
-            ns = str(nxt).strip().lower() if nxt is not None else ""
-            if "не мой" not in ns: continue
-            en = ws.cell(row=1, column=c).value or ws.cell(row=1, column=c + 1).value
-            en = str(en or f"Enemy{len(enemies) + 1}").strip()
-            enemies.append((en, c, c + 1))
+            if nxt is not None and is_atk(nxt):
+                en = ws.cell(row=1, column=c).value or ws.cell(row=1, column=c + 1).value
+                en = str(en or f"Enemy{len(enemies) + 1}").strip()
+                enemies.append((en, c, c + 1))
 
     if not enemies:
-        raise ValidationError("Не найдены столбцы врагов («Мой / Не мой»).")
+        raise ValidationError("Не найдены столбцы (Мой/Не мой или Деф/Атк).")
 
     return players, enemies
 

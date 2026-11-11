@@ -25,13 +25,21 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .btn:disabled{opacity:.4;cursor:default}
 .btn.primary{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 .btn.toggle-on{background:#2a3a5a;border-color:#5b9aff;color:#fff}
-.metrics-row{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;color:#6a7280}
-.chk{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#d0d6e0;cursor:pointer;padding:3px 8px;border-radius:5px;background:#1e2128;border:1px solid #333a45;user-select:none}
-.chk input{margin:0;cursor:pointer;accent-color:#5b9aff}
-.chk:hover{background:#262a32}
-.chk.on{border-color:#5b9aff}
-.chk.accent{background:#2a1d3a;border-color:#6a4a9a}
-.chk.accent.on{background:#3a2d5a;border-color:#a080ff}
+
+/* CSS Анимация для точек */
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+.loading-text::after {
+  display: inline-block;
+  animation: dots 1.5s infinite steps(1, end);
+  content: '';
+  width: 14px;
+  text-align: left;
+}
 
 .path{padding:16px 20px;flex:1}
 .matrix-wrap{padding:0 20px 16px}
@@ -44,7 +52,7 @@ table.matrix th{background:#1a1d24;color:#8a92a0;font-weight:600;font-size:10px}
 table.matrix th.row-head,table.matrix td.row-head{text-align:left;background:#1a1d24;color:#d0d6e0;font-weight:600; cursor: pointer;}
 table.matrix th.col-head { cursor: pointer; }
 table.matrix th.row-head:hover,table.matrix th.col-head:hover{background:#333a45;color:#fff;}
-table.matrix td.v{font-variant-numeric:tabular-nums;min-width:40px}
+table.matrix td.v{font-variant-numeric:tabular-nums;min-width:60px}
 table.matrix td.v .num-pair{display:flex;justify-content:center;gap:4px;font-size:11px;}
 table.matrix td.v .my{font-weight:bold;}
 table.matrix .hidden-cell{display:none;}
@@ -267,6 +275,19 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
       </div>
     </div>
 
+    <div id="helpBox" style="display:none;padding:12px 20px;background:#14171c;border-bottom:1px solid #23262e;font-size:12px;line-height:1.55;color:#c0c6d0">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:6px 14px">
+        <b style="color:#8ab8ff">min</b><span>Гарантия: минимум очков, если <b>оппонент играет худшим для нас образом</b>.</span>
+        <b style="color:#6cd88a">max</b><span>Максимум при самом удобном ответе.</span>
+        <b style="color:#8ab8ff">avg</b><span>Среднее по всем ответам оппонента.</span>
+        <b style="color:#c090ff">σ</b><span>Стандартное отклонение (разброс).</span>
+        <b style="color:#ffc870">min%</b><span>Как часто оппонент попадает в наш минимум.</span>
+        <b style="color:#6cd88a">WR</b><span>Реальный винрейт пары по данным Listhammer.</span>
+        <b style="color:#a080ff">Ручное заполнение</b><span>Клик по плашке не заполняет линию дальше автоматически.</span>
+        <b style="color:#ff8080">× на шаге</b><span>Отменяет выбор этого шага и всех ниже.</span>
+      </div>
+    </div>
+
     <div class="wr-widget" id="wrWidget">
       <label>Винрейт Listhammer:</label>
       <select id="wrFrom" style="margin-right:4px;"></select>
@@ -285,18 +306,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
         <div id="wrAllList"></div>
       </div>
     </div>
-        <div id="helpBox" style="display:none;padding:12px 20px;background:#14171c;border-bottom:1px solid #23262e;font-size:12px;line-height:1.55;color:#c0c6d0">
-      <div style="display:grid;grid-template-columns:130px 1fr;gap:6px 14px">
-        <b style="color:#8ab8ff">min</b><span>Гарантия: минимум очков, если <b>оппонент играет худшим для нас образом</b>.</span>
-        <b style="color:#6cd88a">max</b><span>Максимум при самом удобном ответе.</span>
-        <b style="color:#8ab8ff">avg</b><span>Среднее по всем ответам оппонента.</span>
-        <b style="color:#c090ff">σ</b><span>Стандартное отклонение (разброс).</span>
-        <b style="color:#ffc870">min%</b><span>Как часто оппонент попадает в наш минимум.</span>
-        <b style="color:#6cd88a">WR</b><span>Реальный винрейт пары по данным Listhammer.</span>
-        <b style="color:#a080ff">Ручное заполнение</b><span>Клик по плашке не заполняет линию дальше автоматически.</span>
-        <b style="color:#ff8080">× на шаге</b><span>Отменяет выбор этого шага и всех ниже.</span>
-      </div>
-    </div>
+
     <div class="matrix-wrap" id="matrixWrap" style="display:none"></div>
     
     <div class="path" id="path"></div>
@@ -325,9 +335,14 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
   <div class="modal-card">
     <h2>Генерация парингов</h2>
     <label>Ссылка на Google Sheets:</label>
-    <input type="text" id="gurl" placeholder="https://docs.google.com/spreadsheets/d/...">
+    <div style="display:flex; gap:5px; margin-bottom:12px;">
+      <input type="text" id="gurl" style="margin:0;" placeholder="https://docs.google.com/...">
+      <button onclick="fetchSheets()" id="fetchSheetsBtn" style="width:auto; margin:0; padding:0 10px; background:#262a32; border-color:#5b9aff; white-space:nowrap;">Загрузить листы</button>
+    </div>
+    
     <label>Лист (Тур):</label>
     <select id="sheet" disabled><option>Сначала введите ссылку</option></select>
+    
     <label>Размер команды:</label>
     <select id="tsize" onchange="toggleFormatSelect()">
       <option value="3">3 на 3</option>
@@ -336,19 +351,21 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
       <option value="6" selected>6 на 6</option>
       <option value="8">8 на 8</option>
     </select>
+    
     <label>Формат финала:</label>
     <select id="format">
       <option value="champ_ref" selected>Чемпион vs Отказник</option>
       <option value="champ_champ">Чемпион vs Чемпион</option>
     </select>
+    
     <label>Шкала оценок:</label>
     <select id="scale">
       <option value="10" selected>10-балльная</option>
       <option value="7">7-балльная</option>
       <option value="5">5-балльная</option>
     </select>
-    <button onclick="fetchSheets()" style="background:#262a32;border-color:#5b9aff;">Загрузить листы</button>
-    <button onclick="doGenerate()" style="margin-top:10px;">Сгенерировать</button>
+    
+    <button onclick="doGenerate()" id="genBtn" style="margin-top:10px;">Сгенерировать</button>
     <button class="close-btn" onclick="closeGenModal()">Отмена</button>
     <div id="genStatus" style="color:#ffaa5b;font-size:12px;margin-top:10px;text-align:center;"></div>
     <div class="drop-zone" id="dropZoneModal">
@@ -368,7 +385,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
       <button onclick="loginAdmin()" style="margin-top:15px;">Войти</button>
       <button class="close-btn" onclick="closeAdmin()">Закрыть</button>
     </div>
-        <div id="adminList" style="display:none;">
+    <div id="adminList" style="display:none;">
       <div style="background:#1e2128; padding:12px; border-radius:8px; margin-bottom:15px; font-size:12px; text-align:left;">
         <h3 style="margin-top:0; color:#fff; font-size:14px;">Обновление винрейтов</h3>
         
@@ -410,6 +427,7 @@ let THRESH = 56;
 let matrixHiddenRows = new Set();
 let matrixHiddenCols = new Set();
 let showAllMatchups = false;
+let SHEET_SIZES = {};
 
 const urlParams = new URLSearchParams(window.location.search);
 let ROOM_ID = urlParams.get('room') || 'default';
@@ -484,34 +502,6 @@ async function loadWinRates() {
   } catch (e) {
     WINRATES = null;
     console.warn('winrates из БД недоступны:', e.message);
-  }
-}
-
-async function updateWinrates() {
-  const btn = event.target;
-  const orig = btn.innerText;
-  btn.innerText = 'Парсинг (30-40 сек)...';
-  btn.disabled = true;
-  
-  try {
-    const res = await fetch('/api/db/winrates/recalc', { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Ошибка сервера');
-    
-    WINRATES = {
-      matrix: data.matrix,
-      source: 'https://listhammer.info',
-      scraped_at: new Date().toISOString(),
-      include_rtt: true
-    };
-    
-    render();
-    toast('Винрейты обновлены и сохранены в облако!');
-  } catch(e) {
-    alert('Ошибка парсинга: ' + e.message);
-  } finally {
-    btn.innerText = orig;
-    btn.disabled = false;
   }
 }
 
@@ -646,6 +636,12 @@ function toggleSidebar() {
 
 function toggleMetric(name, on) { METRICS[name] = on; document.getElementById('chk' + name[0].toUpperCase() + name.slice(1)).classList.toggle('on', on); renderPath(); }
 function toggleManual(on) { manualMode = on; document.getElementById('chkManual').classList.toggle('on', on); if (!on && path.length) path = fillOptimal(path); render(); }
+function toggleHelp() {
+  const el = document.getElementById('helpBox');
+  const on = el.style.display === 'none';
+  el.style.display = on ? 'block' : 'none';
+  document.getElementById('helpBtn').classList.toggle('toggle-on', on);
+}
 
 const fmt = v => (v===null||v===undefined||Number.isNaN(v)) ? '—' : v.toFixed(1);
 const N = id => R.nodes[id];
@@ -686,8 +682,9 @@ function renderMatrix() {
     
     return `<td class="${classes} ${cls(my)}">
       <div class="num-pair">
-        <span class="my">${my ?? '—'}</span>
-        <span style="opacity:0.5">/</span>
+        <span style="color:#8ab8ff; font-weight:bold; margin-right:2px;">Д:</span>
+        <span class="my" style="margin-right:6px;">${my ?? '—'}</span>
+        <span style="color:#8a92a0; margin-right:2px;">А:</span>
         <span class="not">${not ?? '—'}</span>
       </div>
     </td>`;
@@ -866,16 +863,18 @@ function collectPairsWithIdx() { const out = []; path.forEach((st, i) => { const
 
 function renderBoard() {
   const items = collectPairsWithIdx(); const el = document.getElementById('pairs'); el.innerHTML = '';
-  for (let i = 0; i < items.length; i++) {
-    const row = document.createElement('div'); row.className = 'pair';
-    const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
-    const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
-    
-    if (score < 10) row.classList.add('bottleneck');
-    const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
-    
-    row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
-    row.onclick = () => scrollToStep(stepIdx); row.style.cursor = 'pointer';
+  for (let i = 0; i < R.players.length; i++) {
+    const row = document.createElement('div'); row.className = 'pair' + (i >= items.length ? ' empty' : '');
+    if (i < items.length) {
+      const {pair, stepIdx} = items[i]; const [our, en, kind, score] = pair; const cls = (kind === 0 || kind === 2) ? 'ours' : 'theirs'; 
+      const sCls = score > 10 ? 'pos' : score === 10 ? 'mid' : 'neg';
+      
+      if (score < 10) row.classList.add('bottleneck');
+      const wr = getWinRate(our, en); const wrTxt = wr === null ? '—' : `${wr.toFixed(1)}%`; const wrCls = wr === null ? 'na' : (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid'); const wrTitle = wr === null ? 'Нет данных Listhammer' : `Винрейт ${our} против ${en}: ${wr.toFixed(1)}%`;
+      
+      row.innerHTML = `<div class="cell ${cls}">${our}</div><div class="vs">vs</div><div class="cell theirs">${en}</div><div class="sc ${sCls}">${fmt(score)}</div><div class="wr ${wrCls}" title="${wrTitle}">${wrTxt}</div>`;
+      row.onclick = () => scrollToStep(stepIdx); row.style.cursor = 'pointer';
+    } else { row.innerHTML = `<div class="cell ours">—</div><div class="vs">vs</div><div class="cell theirs">—</div><div class="sc mid">—</div><div class="wr na">—</div>`; }
     el.appendChild(row);
   }
   const acc = totalAccumulated(); const cur = childOfLast(path); const curMin = (cur === -1 || cur === null) ? 0 : (N(cur).v ?? 0); const g = acc + curMin; const meets = g >= THRESH;
@@ -948,17 +947,46 @@ function toggleFormatSelect() {
 async function fetchSheets() {
   const url = document.getElementById('gurl').value;
   if (!url) return alert('Введите ссылку');
+  
   const st = document.getElementById('genStatus');
-  st.innerText = 'Загрузка листов...';
+  const btn = document.getElementById('fetchSheetsBtn');
+  btn.disabled = true;
+  
+  st.innerHTML = '<span class="loading-text">Загрузка листов</span>';
+
   try {
     const res = await fetch('/api/sheets', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url}) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail);
+    
     const sel = document.getElementById('sheet');
     sel.innerHTML = data.sheets.map(s => `<option value="${s}">${s}</option>`).join('');
     sel.disabled = false;
+    
+    SHEET_SIZES = data.sizes; 
+    
+    if (data.sheets.length > 0) {
+       const firstSize = SHEET_SIZES[data.sheets[0]];
+       if (firstSize) {
+         document.getElementById('tsize').value = firstSize;
+         toggleFormatSelect();
+       }
+    }
+    
+    sel.onchange = () => {
+       const selectedSize = SHEET_SIZES[sel.value];
+       if (selectedSize) {
+         document.getElementById('tsize').value = selectedSize;
+         toggleFormatSelect();
+       }
+    };
+    
     st.innerText = 'Листы загружены.';
-  } catch(e) { st.innerText = 'Ошибка: ' + e.message; }
+  } catch(e) {
+    st.innerText = 'Ошибка: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function doGenerate() {
@@ -970,8 +998,11 @@ async function doGenerate() {
   
   if (!url || !sheet_name) return alert('Заполните все поля');
   const st = document.getElementById('genStatus');
-  st.innerText = 'Генерация (10-30 сек)...';
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true;
   
+  st.innerHTML = '<span class="loading-text">Генерация дерева</span>';
+
   try {
     const res = await fetch('/api/generate', {
       method: 'POST',
@@ -996,6 +1027,7 @@ async function doGenerate() {
     toast('Паринги сгенерированы и сохранены в облако!');
   } catch(e) {
     st.innerText = 'Ошибка: ' + e.message;
+    btn.disabled = false;
   }
 }
 
@@ -1086,7 +1118,6 @@ function openAdmin() {
   document.getElementById('adminLogin').style.display = 'block';
   document.getElementById('adminList').style.display = 'none';
   document.getElementById('adminPass').value = '';
-  document.getElementById('adminRecalcStatus').innerText = '';
 }
 
 function closeAdmin() {
@@ -1117,8 +1148,8 @@ async function loginAdmin() {
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminList').style.display = 'block';
     
-    fetchPeriods(); // Загружаем доступные периоды
-    loadAdminRooms(); // Загружаем комнаты
+    fetchPeriods();
+    loadAdminRooms();
   } catch (e) {
     alert(e.message);
   } finally {
@@ -1147,8 +1178,7 @@ async function adminRecalcWinrates() {
   const rtt = document.getElementById('adminRttCheck').checked;
   
   btn.disabled = true;
-  st.style.color = '#ffaa5b';
-  st.innerText = 'Парсинг Listhammer (30-40 сек)...';
+  st.innerHTML = '<span class="loading-text">Парсинг Listhammer</span>';
   
   try {
     const res = await fetch('/api/admin/winrates/recalc', {
@@ -1167,11 +1197,9 @@ async function adminRecalcWinrates() {
     };
     
     render();
-    st.style.color = '#6cd88a';
     st.innerText = 'Успешно обновлено!';
     toast('Винрейты обновлены!');
   } catch(e) {
-    st.style.color = '#ff5050';
     st.innerText = 'Ошибка: ' + e.message;
   } finally {
     btn.disabled = false;
@@ -1248,7 +1276,7 @@ async function adminDeleteRoom(roomId) {
   const loader = document.createElement('div');
   loader.id = 'loadingOverlay';
   loader.style.cssText = 'position:fixed;inset:0;background:#0f1014;color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:9999;';
-  loader.innerText = 'Загрузка парингов из базы...';
+  loader.innerHTML = '<span class="loading-text">Загрузка парингов из базы</span>';
   document.body.appendChild(loader);
 
   try {

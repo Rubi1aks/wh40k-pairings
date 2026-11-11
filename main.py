@@ -179,7 +179,7 @@ def db_get_winrates():
 
 @app.get("/api/admin/periods")
 def get_admin_periods():
-    return {"periods": minimax.fetch_listhammer_periods()}
+    return {"periods": minimax.fetch_listhammer_periods(log=print)}
 
 @app.post("/api/admin/winrates/recalc")
 def recalc_winrates_admin(req: RecalcWinratesRequest):

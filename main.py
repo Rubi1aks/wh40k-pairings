@@ -33,7 +33,16 @@ class GenerateRequest(BaseModel):
     scale: int
 
 class SavePayload(BaseModel):
+    room_id: str
     data: str
+
+class RecalcWinratesRequest(BaseModel):
+    password: str
+    range: str
+    include_rtt: bool
+
+class AdminRequest(BaseModel):
+    password: str
 
 def _extract_gsheet_id(url):
     m = re.search(r'/spreadsheets/d/([a-zA-Z0-9_-]+)', url)
@@ -102,7 +111,6 @@ def generate(req: GenerateRequest):
             
         report = minimax.generate_pairing(our, enemy_names, sm, sn, req.scale, fmt)
         
-        # Винрейты тянем из БД, чтобы прикрепить к отчёту
         try:
             url = f"{SUPABASE_URL}/winrates_cache?id=eq.default_winrates&select=data"
             headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
@@ -118,48 +126,8 @@ def generate(req: GenerateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class AdminRequest(BaseModel):
-    password: str
-
-@app.post("/api/admin/rooms")
-def get_admin_rooms(req: AdminRequest):
-    # Проверка пароля (берем из Environment Variables)
-    if req.password != os.environ.get("ADMIN_PASSWORD"):
-        raise HTTPException(status_code=401, detail="Неверный пароль")
-
-    # Запрашиваем все комнаты из базы
-    url = f"{SUPABASE_URL}/shared_room?select=room_id,created_at"
-    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
-    try:
-        r = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(r) as resp:
-            rows = json.loads(resp.read().decode("utf-8"))
-            # Считаем размер данных (чтобы понять, пустая комната или нет)
-            # Для простоты берем только id и дату
-            return {"rooms": rows}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/api/admin/rooms/{room_id}")
-def delete_admin_room(room_id: str, password: str):
-    if password != os.environ.get("ADMIN_PASSWORD"):
-        raise HTTPException(status_code=401, detail="Неверный пароль")
-
-    url = f"{SUPABASE_URL}/shared_room?room_id=eq.{room_id}"
-    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
-    try:
-        r = urllib.request.Request(url, headers=headers, method="DELETE")
-        urllib.request.urlopen(r)
-        return {"status": "deleted"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-class SaveRoomPayload(BaseModel):
-    room_id: str
-    data: str
-
 @app.post("/api/db/save")
-def db_save(req: SaveRoomPayload):
+def db_save(req: SavePayload):
     url = f"{SUPABASE_URL}/shared_room"
     headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"}
     payload = json.dumps([{"room_id": req.room_id, "data": req.data}]).encode("utf-8")
@@ -167,8 +135,8 @@ def db_save(req: SaveRoomPayload):
         r = urllib.request.Request(url, data=payload, headers=headers, method="POST")
         urllib.request.urlopen(r)
         return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=500, detail=f"Supabase Error: {e.read().decode('utf-8')}")
 
 @app.get("/api/db/load")
 def db_load(room_id: str = "default"):
@@ -181,8 +149,8 @@ def db_load(room_id: str = "default"):
             if rows and len(rows) > 0:
                 return Response(content=rows[0]['data'], media_type="application/json")
             return Response(content="{}", media_type="application/json")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except urllib.error.HTTPError as e:
+        raise HTTPException(status_code=500, detail=f"Supabase Error: {e.read().decode('utf-8')}")
 
 @app.delete("/api/db/delete/{room_id}")
 def db_delete(room_id: str):
@@ -208,11 +176,6 @@ def db_get_winrates():
             return Response(content="{}", media_type="application/json")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-class RecalcWinratesRequest(BaseModel):
-    password: str
-    range: str
-    include_rtt: bool
 
 @app.get("/api/admin/periods")
 def get_admin_periods():
@@ -246,5 +209,34 @@ def recalc_winrates_admin(req: RecalcWinratesRequest):
         urllib.request.urlopen(r)
         
         return {"status": "ok", "matrix": matrix}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/rooms")
+def get_admin_rooms(req: AdminRequest):
+    if req.password != os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+
+    url = f"{SUPABASE_URL}/shared_room?select=room_id,created_at"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(r) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+            return {"rooms": rows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/admin/rooms/{room_id}")
+def delete_admin_room(room_id: str, password: str):
+    if password != os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+
+    url = f"{SUPABASE_URL}/shared_room?room_id=eq.{room_id}"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    try:
+        r = urllib.request.Request(url, headers=headers, method="DELETE")
+        urllib.request.urlopen(r)
+        return {"status": "deleted"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

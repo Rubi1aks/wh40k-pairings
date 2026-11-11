@@ -435,24 +435,13 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
 
 
 def fetch_listhammer_periods():
-    url = f"{LH_BASE}/factions/chaos-daemons"
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            html = r.read().decode('utf-8', errors='replace')
-        
-        periods = [
-            {"label": "Last 1 Week", "value": "1"},
-            {"label": "Last 2 Weeks", "value": "2"},
-            {"label": "Last 4 Weeks", "value": "4"},
-            {"label": "Last 8 Weeks", "value": "8"},
-            {"label": "Last 12 Weeks", "value": "12"},
-            {"label": "Last 6 Months", "value": "24"},
-            {"label": "Last Year", "value": "52"}
-        ]
-        return periods
-    except Exception as e:
-        return [
-            {"label": "Last 4 Weeks", "value": "4"},
-            {"label": "Last 8 Weeks", "value": "8"}
-        ]
+    # Listhammer рендерит периоды через JS, поэтому мы используем официальный список
+    return [
+        {"label": "Last 1 Week", "value": "1"},
+        {"label": "Last 2 Weeks", "value": "2"},
+        {"label": "Last 4 Weeks", "value": "4"},
+        {"label": "Last 8 Weeks", "value": "8"},
+        {"label": "Last 12 Weeks", "value": "12"},
+        {"label": "Last 6 Months", "value": "24"},
+        {"label": "Last Year", "value": "52"}
+    ]

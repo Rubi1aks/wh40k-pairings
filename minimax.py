@@ -468,59 +468,41 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
 # ============================================================ periods
 
 def _find_periods_in_obj(obj, depth=0):
-    """Рекурсивно ищет в декодированном Nuxt-стейте массив вида [{label, value}, ...]."""
-    if depth > 25:
+    """Рекурсивно ищет в декодированном Nuxt-стейте список периодов."""
+    if depth > 30:
         return None
+    
+    # Ищем прямо в текущем списке
     if isinstance(obj, list):
-        if obj and all(isinstance(x, dict) and 'label' in x and 'value' in x for x in obj):
-            return [{"label": str(x['label']), "value": str(x['value'])} for x in obj]
+        # Проверяем, похоже ли на список опций PrimeVue
+        found_opts = []
         for item in obj:
-            r = _find_periods_in_obj(item, depth + 1)
-            if r:
-                return r
+            if isinstance(item, dict) and 'label' in item and 'value' in item:
+                found_opts.append({"label": str(item['label']), "value": str(item['value'])})
+        if len(found_opts) >= 2:
+            return found_opts
+            
+        # Рекурсивно идем глубже
+        for item in obj:
+            res = _find_periods_in_obj(item, depth + 1)
+            if res:
+                return res
+                
+    # Если это словарь, проверяем его значения
     elif isinstance(obj, dict):
         for v in obj.values():
-            r = _find_periods_in_obj(v, depth + 1)
-            if r:
-                return r
-    return None
-
-
-_PERIOD_ARR_PATTERNS = [
-    # {"label": "...", "value": "..."}
-    r'\[\s*\{[^\[\]]*?"label"\s*:\s*"[^"]+"[^\[\]]*?"value"\s*:\s*"[^"]+"[^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?"label"\s*:\s*"[^"]+"[^\[\]]*?"value"\s*:\s*"[^"]+"[^\[\]]*?\})*\s*\]',
-    r'\[\s*\{[^\[\]]*?"value"\s*:\s*"[^"]+"[^\[\]]*?"label"\s*:\s*"[^"]+"[^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?"value"\s*:\s*"[^"]+"[^\[\]]*?"label"\s*:\s*"[^"]+"[^\[\]]*?\})*\s*\]',
-    # {'label': '...', 'value': '...'}
-    r"\[\s*\{[^\[\]]*?'label'\s*:\s*'[^']+'[^\[\]]*?'value'\s*:\s*'[^']+'[^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?'label'\s*:\s*'[^']+'[^\[\]]*?'value'\s*:\s*'[^']+'[^\[\]]*?\})*\s*\]",
-    r"\[\s*\{[^\[\]]*?'value'\s*:\s*'[^']+'[^\[\]]*?'label'\s*:\s*'[^']+'[^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?'value'\s*:\s*'[^']+'[^\[\]]*?'label'\s*:\s*'[^']+'[^\[\]]*?\})*\s*\]",
-    # unquoted keys (raw JS bundle)
-    r'\[\s*\{[^\[\]]*?label\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?value\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?label\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?value\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?\})*\s*\]',
-    r'\[\s*\{[^\[\]]*?value\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?label\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?\}(?:\s*,\s*\{[^\[\]]*?value\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?label\s*:\s*[\'"][^\'"]+[\'"][^\[\]]*?\})*\s*\]',
-]
-
-
-def _find_periods_in_text(text):
-    """Пытается вытащить массив периодов из сырого HTML/JS-текста."""
-    for pat in _PERIOD_ARR_PATTERNS:
-        for m in re.finditer(pat, text, re.DOTALL):
-            arr_str = m.group(0)
-            periods = []
-            for obj in re.findall(r'\{[^{}]+\}', arr_str):
-                lbl = re.search(r'label\s*:\s*[\'"]([^\'"]+)[\'"]', obj)
-                val = re.search(r'value\s*:\s*[\'"]([^\'"]+)[\'"]', obj)
-                if lbl and val:
-                    periods.append({"label": lbl.group(1), "value": val.group(1)})
-            if periods:
-                return periods
+            res = _find_periods_in_obj(v, depth + 1)
+            if res:
+                return res
+                
     return None
 
 
 def fetch_listhammer_periods(log=None):
-    """Возвращает список периодов Listhammer (или fallback, если все стратегии провалились)."""
     fallback = [
-        {"label": "This Weekend fb", "value": "weekend"},
-        {"label": "Last 4 Weeks fb", "value": "4"},
-        {"label": "Since Dataslate fb", "value": "dataslate"},
+        {"label": "This Weekend", "value": "weekend"},
+        {"label": "Last 4 Weeks", "value": "4"},
+        {"label": "Since Dataslate (Sep 30)", "value": "dataslate"}
     ]
 
     def out(msg):
@@ -530,59 +512,34 @@ def fetch_listhammer_periods(log=None):
             except Exception:
                 pass
 
-    # 1) /stats HTML + __NUXT_DATA__
     try:
+        # Берем главную страницу статистики, где есть глобальный селектор
         req = urllib.request.Request(
             "https://listhammer.info/stats",
             headers={'User-Agent': 'Mozilla/5.0 (personal wh40k pairing tool)'},
         )
         html = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='replace')
-        out(f"[periods] fetched /stats ({len(html)} bytes)")
-
+        
         m = NUXT_RE.search(html)
         if m:
-            try:
-                raw = json.loads(m.group(1))
-                root = _devalue_decode(raw)
-                found = _find_periods_in_obj(root)
-                if found:
-                    out(f"[periods] found {len(found)} periods in __NUXT_DATA__")
-                    return found
-            except Exception as e:
-                out(f"[periods] NUXT decode failed: {e}")
-
-        found = _find_periods_in_text(html)
-        if found:
-            out(f"[periods] found {len(found)} periods in raw HTML")
-            return found
-
-        # 2) любые JS-файлы, на которые ссылается /stats
-        js_urls = set()
-        for pat in (r'src="([^"]+\.js[^"]*)"', r"src='([^']+\.js[^']*)'",
-                    r'href="([^"]+\.js[^"]*)"', r"href='([^']+\.js[^']*)'"):
-            for u in re.findall(pat, html):
-                if u.startswith('//'):
-                    js_urls.add('https:' + u)
-                elif u.startswith('/'):
-                    js_urls.add('https://listhammer.info' + u)
-                elif u.startswith('http'):
-                    js_urls.add(u)
-        out(f"[periods] candidate js files: {len(js_urls)}")
-
-        for js_url in js_urls:
-            try:
-                req_js = urllib.request.Request(js_url, headers={'User-Agent': 'Mozilla/5.0'})
-                js = urllib.request.urlopen(req_js, timeout=10).read().decode('utf-8', errors='replace')
-                if 'label' not in js or 'value' not in js:
-                    continue
-                found = _find_periods_in_text(js)
-                if found:
-                    out(f"[periods] found {len(found)} periods in {js_url}")
-                    return found
-            except Exception:
-                continue
+            raw = json.loads(m.group(1))
+            root = _devalue_decode(raw)
+            
+            # Ищем в Nuxt-стейте
+            found = _find_periods_in_obj(root)
+            if found:
+                out(f"[periods] found {len(found)} periods in __NUXT_DATA__")
+                # Очищаем от возможных дублей
+                unique_periods = []
+                seen = set()
+                for p in found:
+                    if p['value'] not in seen:
+                        unique_periods.append(p)
+                        seen.add(p['value'])
+                return unique_periods
     except Exception as e:
         out(f"[periods] fetch error: {e}")
 
     out("[periods] falling back to hardcoded list")
     return fallback
+    

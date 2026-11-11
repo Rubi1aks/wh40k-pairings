@@ -240,7 +240,6 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 
     <h2>Действия</h2>
     <button class="btn" onclick="copySummary()" style="width:100%;margin-bottom:10px;">⧉ Скопировать сводку</button>
-    <button class="btn" onclick="updateWinrates()" style="width:100%;margin-bottom:10px;">🔄 Обновить винрейты</button>
     <label class="chk accent" id="chkManual" title="Если включено — клик по плашке не тянет за собой автозаполнение ниже.">
       <input type="checkbox" onchange="toggleManual(this.checked)"> Ручное заполнение
     </label>
@@ -264,6 +263,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
         <button class="btn" onclick="optimizeFromCurrent()" title="Находит первый незаполненный шаг и достраивает линию оптимально от него">▶ Оптимально с текущего шага</button>
         <button class="btn" onclick="resetAll()">⟲ Сбросить</button>
         <button class="btn" id="matrixBtn" onclick="toggleMatrix()">📋 Матрица оценок</button>
+        <button class="btn" id="helpBtn" onclick="toggleHelp()">? Пояснения</button>
       </div>
     </div>
 
@@ -285,7 +285,18 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
         <div id="wrAllList"></div>
       </div>
     </div>
-
+        <div id="helpBox" style="display:none;padding:12px 20px;background:#14171c;border-bottom:1px solid #23262e;font-size:12px;line-height:1.55;color:#c0c6d0">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:6px 14px">
+        <b style="color:#8ab8ff">min</b><span>Гарантия: минимум очков, если <b>оппонент играет худшим для нас образом</b>.</span>
+        <b style="color:#6cd88a">max</b><span>Максимум при самом удобном ответе.</span>
+        <b style="color:#8ab8ff">avg</b><span>Среднее по всем ответам оппонента.</span>
+        <b style="color:#c090ff">σ</b><span>Стандартное отклонение (разброс).</span>
+        <b style="color:#ffc870">min%</b><span>Как часто оппонент попадает в наш минимум.</span>
+        <b style="color:#6cd88a">WR</b><span>Реальный винрейт пары по данным Listhammer.</span>
+        <b style="color:#a080ff">Ручное заполнение</b><span>Клик по плашке не заполняет линию дальше автоматически.</span>
+        <b style="color:#ff8080">× на шаге</b><span>Отменяет выбор этого шага и всех ниже.</span>
+      </div>
+    </div>
     <div class="matrix-wrap" id="matrixWrap" style="display:none"></div>
     
     <div class="path" id="path"></div>
@@ -357,8 +368,26 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
       <button onclick="loginAdmin()" style="margin-top:15px;">Войти</button>
       <button class="close-btn" onclick="closeAdmin()">Закрыть</button>
     </div>
-    <div id="adminList" style="display:none;">
-      <button onclick="loadAdminRooms()" style="margin-bottom:10px; background:#262a32; border-color:#5b9aff;">🔄 Обновить список</button>
+        <div id="adminList" style="display:none;">
+      <div style="background:#1e2128; padding:12px; border-radius:8px; margin-bottom:15px; font-size:12px; text-align:left;">
+        <h3 style="margin-top:0; color:#fff; font-size:14px;">Обновление винрейтов</h3>
+        
+        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+          <select id="adminPeriodSelect" style="flex:1; padding:5px; background:#14171c; color:#fff; border:1px solid #333a45; border-radius:4px;">
+             <option value="4">Last 4 Weeks</option>
+          </select>
+          <button class="btn" onclick="fetchPeriods()" style="margin:0; padding:5px 10px;">🔄</button>
+        </div>
+
+        <label style="display:flex; align-items:center; gap:5px; margin-bottom:15px; cursor:pointer;">
+          <input type="checkbox" id="adminRttCheck" checked> Включать RTT-турниры
+        </label>
+
+        <button onclick="adminRecalcWinrates()" style="width:100%; background:#1e3a20; border-color:#6cd88a; color:#fff;" id="adminRecalcBtn">Пересчитать винрейты</button>
+        <div id="adminRecalcStatus" style="color:#ffaa5b; margin-top:10px; text-align:center;"></div>
+      </div>
+
+      <button onclick="loadAdminRooms()" style="margin-bottom:10px; background:#262a32; border-color:#5b9aff; width:100%;">🔄 Обновить список комнат</button>
       <div id="roomsContainer" style="max-height: 300px; overflow-y: auto; text-align:left;"></div>
       <button class="close-btn" onclick="closeAdmin()" style="margin-top:15px;">Закрыть</button>
     </div>
@@ -1057,6 +1086,7 @@ function openAdmin() {
   document.getElementById('adminLogin').style.display = 'block';
   document.getElementById('adminList').style.display = 'none';
   document.getElementById('adminPass').value = '';
+  document.getElementById('adminRecalcStatus').innerText = '';
 }
 
 function closeAdmin() {
@@ -1086,12 +1116,65 @@ async function loginAdmin() {
     ADMIN_PASS = pass;
     document.getElementById('adminLogin').style.display = 'none';
     document.getElementById('adminList').style.display = 'block';
-    loadAdminRooms();
+    
+    fetchPeriods(); // Загружаем доступные периоды
+    loadAdminRooms(); // Загружаем комнаты
   } catch (e) {
     alert(e.message);
   } finally {
     btn.disabled = false;
     btn.innerText = 'Войти';
+  }
+}
+
+async function fetchPeriods() {
+  try {
+    const res = await fetch('/api/admin/periods');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail);
+    
+    const sel = document.getElementById('adminPeriodSelect');
+    sel.innerHTML = data.periods.map(p => `<option value="${p.value}">${p.label}</option>`).join('');
+  } catch(e) {
+    console.error('Ошибка получения периодов:', e);
+  }
+}
+
+async function adminRecalcWinrates() {
+  const btn = document.getElementById('adminRecalcBtn');
+  const st = document.getElementById('adminRecalcStatus');
+  const period = document.getElementById('adminPeriodSelect').value;
+  const rtt = document.getElementById('adminRttCheck').checked;
+  
+  btn.disabled = true;
+  st.style.color = '#ffaa5b';
+  st.innerText = 'Парсинг Listhammer (30-40 сек)...';
+  
+  try {
+    const res = await fetch('/api/admin/winrates/recalc', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ password: ADMIN_PASS, range: period, include_rtt: rtt })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Ошибка сервера');
+    
+    WINRATES = {
+      matrix: data.matrix,
+      source: 'https://listhammer.info',
+      scraped_at: new Date().toISOString(),
+      include_rtt: rtt
+    };
+    
+    render();
+    st.style.color = '#6cd88a';
+    st.innerText = 'Успешно обновлено!';
+    toast('Винрейты обновлены!');
+  } catch(e) {
+    st.style.color = '#ff5050';
+    st.innerText = 'Ошибка: ' + e.message;
+  } finally {
+    btn.disabled = false;
   }
 }
 

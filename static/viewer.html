@@ -26,7 +26,6 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .btn.primary{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 .btn.toggle-on{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 
-/* Старый дизайн чекбоксов */
 .chk { display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#d0d6e0; cursor:pointer; padding:6px 10px; border-radius:6px; background:#1e2128; border:1px solid #333a45; user-select:none; transition: 0.2s; }
 .chk:hover { background:#262a32; border-color:#4a5058; }
 .chk.on { border-color:#5b9aff; background: #2a3a5a; }
@@ -64,7 +63,6 @@ table.matrix td.v .num-pair{display:flex;justify-content:center;gap:4px;font-siz
 table.matrix td.v .my{font-weight:bold;}
 table.matrix .hidden-cell{display:none;}
 
-/* Подсветка ячеек матрицы */
 table.matrix td.v.e0{background:#3a1a1a;color:#ff9090}
 table.matrix td.v.e1{background:#3a2a1a;color:#ffb070}
 table.matrix td.v.e2{background:#2a2a2a;color:#c0c0c0}
@@ -257,6 +255,8 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 
     <h2>Действия</h2>
     <label class="chk accent" id="chkManual" title="Если включено — клик по плашке не тянет за собой автозаполнение ниже.">
+      <input type="checkbox" onchange="toggleManual(this.checked)"> Ручное заполнение
+    </label>
     
     <!-- АДМИНКА -->
     <div style="margin-top: 30px; text-align: center;">
@@ -386,7 +386,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
   <div class="modal-card" style="max-width: 500px;">
     <button class="modal-close-x" onclick="closeAdmin()" title="Закрыть">✕</button>
     <h2 style="margin-bottom: 20px; padding-right: 24px;">Админ-панель</h2>
-
+    
     <div id="adminLogin">
       <label>Введите пароль:</label>
       <input type="password" id="adminPass" placeholder="••••••••" style="margin-bottom: 15px;">
@@ -717,6 +717,7 @@ function renderMatrix() {
         <span class="not">${not ?? '—'}</span>
       </div>
     </td>`;
+  };
 
   let header = `<tr><th class="row-head">Мы ↓ / Они →</th>`;
   enemies.forEach((e, j) => {

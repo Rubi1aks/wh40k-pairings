@@ -435,13 +435,45 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
 
 
 def fetch_listhammer_periods():
-    # Listhammer рендерит периоды через JS, поэтому мы используем официальный список
+    # Пытаемся вытащить реальный список периодов из JS-бандла Listhammer
+    try:
+        req = urllib.request.Request("https://listhammer.info/stats", headers={'User-Agent': 'Mozilla/5.0'})
+        html = urllib.request.urlopen(req, timeout=15).read().decode('utf-8')
+        
+        js_urls = re.findall(r'src="(/_nuxt/[^"]+\.js)"', html)
+        
+        found_periods = []
+        for js_url in js_urls:
+            try:
+                req_js = urllib.request.Request("https://listhammer.info" + js_url, headers={'User-Agent': 'Mozilla/5.0'})
+                js = urllib.request.urlopen(req_js, timeout=10).read().decode('utf-8')
+                
+                if 'This Weekend' in js:
+                    matches = re.findall(r'label\s*:\s*"([^"]+)"\s*,\s*value\s*:\s*"([^"]+)"', js)
+                    if matches:
+                        for m in matches:
+                            label, val = m
+                            if "Weekend" in label or "Weeks" in label or "Dataslate" in label:
+                                found_periods.append({"label": label, "value": val})
+                    if found_periods:
+                        break
+            except:
+                continue
+                
+        if found_periods:
+            seen = set()
+            unique = []
+            for p in found_periods:
+                if p['label'] not in seen:
+                    unique.append(p)
+                    seen.add(p['label'])
+            return unique
+    except:
+        pass
+
+    # Фолбэк, если Listhammer изменит структуру бандла
     return [
-        {"label": "Last 1 Week", "value": "1"},
-        {"label": "Last 2 Weeks", "value": "2"},
+        {"label": "This Weekend", "value": "weekend"},
         {"label": "Last 4 Weeks", "value": "4"},
-        {"label": "Last 8 Weeks", "value": "8"},
-        {"label": "Last 12 Weeks", "value": "12"},
-        {"label": "Last 6 Months", "value": "24"},
-        {"label": "Last Year", "value": "52"}
+        {"label": "Since Dataslate", "value": "dataslate"}
     ]

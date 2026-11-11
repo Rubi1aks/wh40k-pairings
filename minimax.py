@@ -365,11 +365,15 @@ def _normalize_opponent_name(name):
         return name[:name.rindex(' (')]
     return name
 
-
-def _fetch_winrates_for_faction(slug, log=print):
+def _fetch_winrates_for_faction(slug, range_val="4", include_rtt=True, log=print):
     params = []
-    if WINRATES_INCLUDE_RTTS:
+    if include_rtt:
         params.append('includeRtt=true')
+    else:
+        params.append('includeRtt=false')
+    if range_val:
+        params.append(f'range={range_val}')
+        
     qs = ('?' + '&'.join(params)) if params else ''
     url = f"{LH_BASE}/factions/{slug}{qs}"
     req = urllib.request.Request(url, headers={
@@ -411,12 +415,12 @@ def _fetch_winrates_for_faction(slug, log=print):
     return matchups
 
 
-def scrape_winrates(log=print):
+def scrape_winrates(range_val="4", include_rtt=True, log=print):
     matrix = {}
     total = len(WINRATES_FACTIONS)
     for i, (slug, canonical) in enumerate(WINRATES_FACTIONS, 1):
         try:
-            matchups = _fetch_winrates_for_faction(slug, log=log)
+            matchups = _fetch_winrates_for_faction(slug, range_val=range_val, include_rtt=include_rtt, log=log)
         except Exception as e:
             log(f"  ! [{i}/{total}] {slug}: {e}")
             time.sleep(1.5)
@@ -425,3 +429,20 @@ def scrape_winrates(log=print):
         log(f"  ✓ [{i}/{total}] {canonical}: {len(matchups)} matchups")
         time.sleep(1.0)
     return matrix
+
+def fetch_listhammer_periods():
+    """
+    Возвращает список доступных периодов.
+    Так как Listhammer рендерит их через Vue, мы даем стандартный набор,
+    который используется на сайте.
+    """
+    return [
+        {"label": "Last 1 Week", "value": "1"},
+        {"label": "Last 2 Weeks", "value": "2"},
+        {"label": "Last 4 Weeks", "value": "4"},
+        {"label": "Last 8 Weeks", "value": "8"},
+        {"label": "Last 12 Weeks", "value": "12"},
+        {"label": "Last 6 Months", "value": "24"},
+        {"label": "Last Year", "value": "52"}
+    ]
+

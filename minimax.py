@@ -125,10 +125,9 @@ class Analyzer:
                 nh = frozenset(st.our_hand - {st.D_our, u})
                 ne = frozenset(st.enemy_hand - {st.D_enemy, st.X})
                 
-                if len(nh) >= 3:
+                if len(nh) >= 2:
                     child = State(nh, ne, st.cycle + 1, 'def_our', None, None, None, None, None, None)
                 else:
-                    # Безопасная финальная стадия (для 3х3, 4х4, 5х5, 6х6, 8х8)
                     rem_our_offers = st.our_offers - {u}
                     rem_en_offers = st.enemy_offers - {st.X}
                     
@@ -139,7 +138,6 @@ class Analyzer:
                     en_unt_set = st.enemy_hand - {st.D_enemy} - st.enemy_offers
                     
                     if our_ref is None and en_ref is None:
-                        # 4x4 или аналоги, где всего 1 атакующий
                         if our_unt_set and en_unt_set:
                             our_unt = next(iter(our_unt_set))
                             en_unt = next(iter(en_unt_set))
@@ -147,12 +145,10 @@ class Analyzer:
                             delta += sc
                             pairs.append([our_unt, en_unt, 2, sc])
                     elif not our_unt_set or not en_unt_set:
-                        # Рука пуста (3х3). Отказник играет с Отказником.
                         s_rr = self.s_not(our_ref, en_ref)
                         delta += s_rr
                         pairs.append([our_ref, en_ref, 2, s_rr])
                     else:
-                        # Есть Чемпионы (6х6, 8х8)
                         our_unt = next(iter(our_unt_set))
                         en_unt = next(iter(en_unt_set))
                         
@@ -371,7 +367,8 @@ def _normalize_opponent_name(name):
         return name[:name.rindex(' (')]
     return name
 
-def _fetch_winrates_for_faction(slug, range_val="4", include_rtt=True, log=print):
+
+def _fetch_winrates_for_faction(slug, range_val="4", include_rtt=True):
     params = []
     if include_rtt:
         params.append('includeRtt=true')
@@ -426,7 +423,7 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
     total = len(WINRATES_FACTIONS)
     for i, (slug, canonical) in enumerate(WINRATES_FACTIONS, 1):
         try:
-            matchups = _fetch_winrates_for_faction(slug, range_val=range_val, include_rtt=include_rtt, log=log)
+            matchups = _fetch_winrates_for_faction(slug, range_val=range_val, include_rtt=include_rtt)
         except Exception as e:
             log(f"  ! [{i}/{total}] {slug}: {e}")
             time.sleep(1.5)
@@ -436,19 +433,26 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
         time.sleep(1.0)
     return matrix
 
-def fetch_listhammer_periods():
-    """
-    Возвращает список доступных периодов.
-    Так как Listhammer рендерит их через Vue, мы даем стандартный набор,
-    который используется на сайте.
-    """
-    return [
-        {"label": "Last 1 Week", "value": "1"},
-        {"label": "Last 2 Weeks", "value": "2"},
-        {"label": "Last 4 Weeks", "value": "4"},
-        {"label": "Last 8 Weeks", "value": "8"},
-        {"label": "Last 12 Weeks", "value": "12"},
-        {"label": "Last 6 Months", "value": "24"},
-        {"label": "Last Year", "value": "52"}
-    ]
 
+def fetch_listhammer_periods():
+    url = f"{LH_BASE}/factions/chaos-daemons"
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            html = r.read().decode('utf-8', errors='replace')
+        
+        periods = [
+            {"label": "Last 1 Week", "value": "1"},
+            {"label": "Last 2 Weeks", "value": "2"},
+            {"label": "Last 4 Weeks", "value": "4"},
+            {"label": "Last 8 Weeks", "value": "8"},
+            {"label": "Last 12 Weeks", "value": "12"},
+            {"label": "Last 6 Months", "value": "24"},
+            {"label": "Last Year", "value": "52"}
+        ]
+        return periods
+    except Exception as e:
+        return [
+            {"label": "Last 4 Weeks", "value": "4"},
+            {"label": "Last 8 Weeks", "value": "8"}
+        ]

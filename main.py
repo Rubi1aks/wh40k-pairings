@@ -57,7 +57,17 @@ def get_sheets(req: SheetRequest):
         path = download_gsheet(req.url)
         wb = openpyxl.load_workbook(path, read_only=True)
         os.remove(path)
-        return {"sheets": wb.sheetnames}
+        
+        sizes = {}
+        for name in wb.sheetnames:
+            ws = wb[name]
+            try:
+                players, _ = minimax.validate_table(ws)
+                sizes[name] = len(players)
+            except:
+                sizes[name] = 6
+                
+        return {"sheets": wb.sheetnames, "sizes": sizes}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

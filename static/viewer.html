@@ -534,6 +534,17 @@ function getWinRate(factionA, factionB) {
   return null;
 }
 
+function getFactionOverallWinrate(factionName) {
+  if (!WINRATES || !WINRATES.matrix) return null;
+  const f = resolveFaction(factionName);
+  if (!f) return null;
+  const row = WINRATES.matrix[f];
+  if (!row) return null;
+  const vals = Object.values(row);
+  if (!vals.length) return null;
+  return vals.reduce((a, b) => a + b, 0) / vals.length;
+}
+
 function getAllMatchups(subject) {
   if (!WINRATES || !WINRATES.matrix) return [];
   const subj = resolveFaction(subject);
@@ -711,6 +722,7 @@ function renderMatrix() {
     const hid = matrixHiddenCols.has(j) ? ' hidden-cell' : '';
     header += `<th class="col-head${hid}" onclick="toggleCol(${j})" title="Нажмите, чтобы скрыть/показать">${e}</th>`;
   });
+  header += `<th class="col-head" style="color:#8a92a0; cursor:default; background:transparent;" title="Винрейт противника">WR</th>`;
   header += `</tr>`;
 
   let rows = players.map((p, i) => {
@@ -719,6 +731,11 @@ function renderMatrix() {
     enemies.forEach((_, j) => {
       tr += cell(R.matrix.my[i][j], R.matrix.not[i][j], i, j);
     });
+    // Винрейт этой фракции (общий винрейт по всем матчапам)
+    const wr = getFactionOverallWinrate(p);
+    const wrTxt = wr !== null ? `${wr.toFixed(1)}%` : '—';
+    const wrCls = wr !== null ? (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid') : 'na';
+    tr += `<td class="v" style="background:transparent;"><span class="wr ${wrCls}" style="background:transparent; padding:0; font-weight:bold;">${wrTxt}</span></td>`;
     tr += `</tr>`;
     return tr;
   }).join('');

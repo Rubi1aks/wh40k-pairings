@@ -26,7 +26,14 @@ h2{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#6a7280;ma
 .btn.primary{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 .btn.toggle-on{background:#2a3a5a;border-color:#5b9aff;color:#fff}
 
-/* CSS Анимация для точек */
+/* Старый дизайн чекбоксов */
+.chk { display:inline-flex; align-items:center; gap:8px; font-size:12px; color:#d0d6e0; cursor:pointer; padding:6px 10px; border-radius:6px; background:#1e2128; border:1px solid #333a45; user-select:none; transition: 0.2s; }
+.chk:hover { background:#262a32; border-color:#4a5058; }
+.chk.on { border-color:#5b9aff; background: #2a3a5a; }
+.chk input { margin:0; cursor:pointer; accent-color:#5b9aff; }
+.chk.accent { background:#2a1d3a; border-color:#6a4a9a; }
+.chk.accent.on { background:#3a2d5a; border-color:#a080ff; box-shadow: 0 0 8px rgba(160,128,255,0.2); }
+
 @keyframes dots {
   0%, 20% { content: ''; }
   40% { content: '.'; }
@@ -192,7 +199,7 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 .drop-overlay { position: fixed; inset: 0; background: rgba(42,58,90,0.85); z-index: 9999; display: none; align-items: center; justify-content: center; border: 4px dashed #5b9aff; color: #fff; font-size: 24px; font-weight: bold; pointer-events: none; text-align: center; padding: 40px; }
 .drop-overlay.active { display: flex; }
 
-/* Модальное окно генерации */
+/* Модальное окно */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
 .modal-overlay.active{display:flex}
 .modal-card{background:#16181d;border:1px solid #333a45;border-radius:12px;padding:24px;width:100%;max-width:460px;color:#e0e0e0}
@@ -376,7 +383,6 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 </div>
 
 <!-- Модалка Админки -->
-<!-- Модалка Админки -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal-card" style="max-width: 500px;">
     <h2 style="margin-bottom: 20px;">Админ-панель</h2>
@@ -402,8 +408,8 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
           <button class="btn" onclick="fetchPeriods()" style="width:auto; margin:0; padding:0 12px; background:#262a32; border-color:#333a45;" title="Обновить список периодов">🔄</button>
         </div>
 
-        <label style="display:flex; align-items:center; gap:8px; margin-bottom:15px; cursor:pointer; font-size:12px; color:#d0d6e0;">
-          <input type="checkbox" id="adminRttCheck" checked style="width:16px; height:16px; margin:0;"> 
+        <label class="chk accent" style="display:flex; margin-bottom:15px; font-size:12px;" id="chkRtt">
+          <input type="checkbox" id="adminRttCheck" checked> 
           Включать RTT-турниры
         </label>
 
@@ -417,8 +423,8 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
         
         <button onclick="loadAdminRooms()" style="width:100%; background:#262a32; border-color:#5b9aff; color:#fff; margin-bottom:12px; margin-top:0;">🔄 Обновить список</button>
         
-        <div id="roomsContainer" style="max-height: 200px; overflow-y: auto; border:1px solid #2a2e38; border-radius:4px;">
-          <!-- Сюда падает таблица -->
+        <div id="roomsContainer" style="max-height: 200px; overflow-y: auto; overflow-x: hidden;">
+          <!-- Сюда падает список -->
         </div>
       </div>
 
@@ -722,7 +728,7 @@ function renderMatrix() {
     const hid = matrixHiddenCols.has(j) ? ' hidden-cell' : '';
     header += `<th class="col-head${hid}" onclick="toggleCol(${j})" title="Нажмите, чтобы скрыть/показать">${e}</th>`;
   });
-  header += `<th class="col-head" style="color:#8a92a0; cursor:default; background:transparent;" title="Винрейт противника">WR</th>`;
+  header += `<th class="col-head" style="color:#8a92a0; cursor:default; background:transparent;" title="Средний винрейт фракции">WR</th>`;
   header += `</tr>`;
 
   let rows = players.map((p, i) => {
@@ -731,7 +737,6 @@ function renderMatrix() {
     enemies.forEach((_, j) => {
       tr += cell(R.matrix.my[i][j], R.matrix.not[i][j], i, j);
     });
-    // Винрейт этой фракции (общий винрейт по всем матчапам)
     const wr = getFactionOverallWinrate(p);
     const wrTxt = wr !== null ? `${wr.toFixed(1)}%` : '—';
     const wrCls = wr !== null ? (wr >= 55 ? 'pos' : wr <= 45 ? 'neg' : 'mid') : 'na';
@@ -1199,8 +1204,9 @@ async function fetchPeriods() {
     
     const sel = document.getElementById('adminPeriodSelect');
     sel.innerHTML = data.periods.map(p => `<option value="${p.value}">${p.label}</option>`).join('');
+    toast('Периоды обновлены');
   } catch(e) {
-    console.error('Ошибка получения периодов:', e);
+    alert('Ошибка получения периодов: ' + e.message);
   }
 }
 
@@ -1257,23 +1263,22 @@ async function loadAdminRooms() {
       return;
     }
     
-    let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
-    html += '<tr style="color:#8a92a0; background:#14171c;"><th style="text-align:left; padding:8px 10px; font-weight:normal;">Комната</th><th style="text-align:right; padding:8px 10px; font-weight:normal;">Действие</th></tr>';
+    let html = '<div style="display:flex; flex-direction:column; gap:4px; padding:4px;">';
     
     data.rooms.forEach(r => {
       const dateStr = r.created_at ? r.created_at.replace('T', ' ').substring(0, 16) : '—';
-      html += `<tr style="border-bottom:1px solid #23262e;">
-        <td style="padding:8px 10px;">
-          <div style="font-weight:bold; color:#5b9aff; margin-bottom:2px;">${r.room_id}</div>
+      html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#14171c; padding:8px; border-radius:4px; border:1px solid #2a2e38;">
+        <div style="min-width:0; flex:1;">
+          <div style="font-weight:bold; color:#5b9aff; overflow:hidden; text-overflow:ellipsis;">${r.room_id}</div>
           <div style="color:#6a7280; font-size:10px;">${dateStr}</div>
-        </td>
-        <td style="text-align:right; padding:8px 10px; white-space:nowrap;">
-          <a href="?room=${r.room_id}" target="_blank" style="color:#6cd88a; text-decoration:none; margin-right:12px; font-size:14px;" title="Перейти">↗</a>
+        </div>
+        <div style="display:flex; gap:8px; flex-shrink:0;">
+          <a href="?room=${r.room_id}" target="_blank" style="color:#6cd88a; text-decoration:none; font-size:14px;" title="Перейти">↗</a>
           <button onclick="adminDeleteRoom('${r.room_id}')" style="background:transparent; border:none; color:#ff5050; cursor:pointer; font-size:14px;" title="Удалить">🗑</button>
-        </td>
-      </tr>`;
+        </div>
+      </div>`;
     });
-    html += '</table>';
+    html += '</div>';
     container.innerHTML = html;
   } catch (e) {
     container.innerHTML = `<div style="color:#f88; font-size:12px; text-align:center;">Ошибка: ${e.message}</div>`;

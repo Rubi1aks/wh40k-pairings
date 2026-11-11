@@ -199,14 +199,26 @@ def db_get_winrates():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/db/winrates/recalc")
-def recalc_winrates():
+class RecalcWinratesRequest(BaseModel):
+    password: str
+    range: str
+    include_rtt: bool
+
+@app.get("/api/admin/periods")
+def get_admin_periods():
+    return {"periods": minimax.fetch_listhammer_periods()}
+
+@app.post("/api/admin/winrates/recalc")
+def recalc_winrates_admin(req: RecalcWinratesRequest):
+    if req.password != os.environ.get("ADMIN_PASSWORD"):
+        raise HTTPException(status_code=401, detail="Неверный пароль")
+        
     try:
-        matrix = minimax.scrape_winrates(log=print)
+        matrix = minimax.scrape_winrates(range_val=req.range, include_rtt=req.include_rtt, log=print)
         payload = {
             'source': minimax.LH_BASE,
             'scraped_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
-            'include_rtt': minimax.WINRATES_INCLUDE_RTTS,
+            'include_rtt': req.include_rtt,
             'factions': [name for _, name in minimax.WINRATES_FACTIONS],
             'matrix': matrix,
         }

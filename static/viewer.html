@@ -376,37 +376,53 @@ table.matrix td.v.e4{background:#1a3a1e;color:#6cd88a}
 </div>
 
 <!-- Модалка Админки -->
+<!-- Модалка Админки -->
 <div class="modal-overlay" id="adminModal">
-  <div class="modal-card">
-    <h2>Админ-панель</h2>
+  <div class="modal-card" style="max-width: 500px;">
+    <h2 style="margin-bottom: 20px;">Админ-панель</h2>
+    
     <div id="adminLogin">
       <label>Введите пароль:</label>
-      <input type="password" id="adminPass" placeholder="••••••••">
-      <button onclick="loginAdmin()" style="margin-top:15px;">Войти</button>
-      <button class="close-btn" onclick="closeAdmin()">Закрыть</button>
+      <input type="password" id="adminPass" placeholder="••••••••" style="margin-bottom: 15px;">
+      <div style="display:flex; gap:10px;">
+        <button onclick="loginAdmin()" style="flex:1;">Войти</button>
+        <button class="close-btn" onclick="closeAdmin()" style="flex:1; margin-top:0;">Закрыть</button>
+      </div>
     </div>
+
     <div id="adminList" style="display:none;">
-      <div style="background:#1e2128; padding:12px; border-radius:8px; margin-bottom:15px; font-size:12px; text-align:left;">
-        <h3 style="margin-top:0; color:#fff; font-size:14px;">Обновление винрейтов</h3>
+      <!-- Блок винрейтов -->
+      <div style="background:#1e2128; padding:16px; border-radius:8px; margin-bottom:20px; border:1px solid #2a2e38;">
+        <h3 style="margin-top:0; margin-bottom:12px; color:#fff; font-size:13px; letter-spacing:0.5px;">Винрейты Listhammer</h3>
         
-        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
-          <select id="adminPeriodSelect" style="flex:1; padding:5px; background:#14171c; color:#fff; border:1px solid #333a45; border-radius:4px;">
+        <div style="display:flex; gap:8px; margin-bottom:12px;">
+          <select id="adminPeriodSelect" style="flex:1; padding:6px 10px; background:#14171c; color:#fff; border:1px solid #333a45; border-radius:6px; font-size:12px;">
              <option value="4">Last 4 Weeks</option>
           </select>
-          <button class="btn" onclick="fetchPeriods()" style="margin:0; padding:5px 10px;">🔄</button>
+          <button class="btn" onclick="fetchPeriods()" style="width:auto; margin:0; padding:0 12px; background:#262a32; border-color:#333a45;" title="Обновить список периодов">🔄</button>
         </div>
 
-        <label style="display:flex; align-items:center; gap:5px; margin-bottom:15px; cursor:pointer;">
-          <input type="checkbox" id="adminRttCheck" checked> Включать RTT-турниры
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:15px; cursor:pointer; font-size:12px; color:#d0d6e0;">
+          <input type="checkbox" id="adminRttCheck" checked style="width:16px; height:16px; margin:0;"> 
+          Включать RTT-турниры
         </label>
 
-        <button onclick="adminRecalcWinrates()" style="width:100%; background:#1e3a20; border-color:#6cd88a; color:#fff;" id="adminRecalcBtn">Пересчитать винрейты</button>
-        <div id="adminRecalcStatus" style="color:#ffaa5b; margin-top:10px; text-align:center;"></div>
+        <button onclick="adminRecalcWinrates()" style="width:100%; background:#1e3a20; border-color:#6cd88a; color:#fff; margin:0;" id="adminRecalcBtn">Пересчитать винрейты</button>
+        <div id="adminRecalcStatus" style="color:#ffaa5b; margin-top:10px; text-align:center; font-size:12px;"></div>
       </div>
 
-      <button onclick="loadAdminRooms()" style="margin-bottom:10px; background:#262a32; border-color:#5b9aff; width:100%;">🔄 Обновить список комнат</button>
-      <div id="roomsContainer" style="max-height: 300px; overflow-y: auto; text-align:left;"></div>
-      <button class="close-btn" onclick="closeAdmin()" style="margin-top:15px;">Закрыть</button>
+      <!-- Блок комнат -->
+      <div style="background:#1e2128; padding:16px; border-radius:8px; border:1px solid #2a2e38;">
+        <h3 style="margin-top:0; margin-bottom:12px; color:#fff; font-size:13px; letter-spacing:0.5px;">Активные комнаты</h3>
+        
+        <button onclick="loadAdminRooms()" style="width:100%; background:#262a32; border-color:#5b9aff; color:#fff; margin-bottom:12px; margin-top:0;">🔄 Обновить список</button>
+        
+        <div id="roomsContainer" style="max-height: 200px; overflow-y: auto; border:1px solid #2a2e38; border-radius:4px;">
+          <!-- Сюда падает таблица -->
+        </div>
+      </div>
+
+      <button class="close-btn" onclick="closeAdmin()" style="width:100%; margin-top:20px;">Закрыть</button>
     </div>
   </div>
 </div>
@@ -1225,18 +1241,18 @@ async function loadAdminRooms() {
     }
     
     let html = '<table style="width:100%; font-size:12px; border-collapse:collapse;">';
-    html += '<tr style="color:#8a92a0; border-bottom:1px solid #333;"><th style="text-align:left; padding:5px;">Комната</th><th style="text-align:right; padding:5px;">Действие</th></tr>';
+    html += '<tr style="color:#8a92a0; background:#14171c;"><th style="text-align:left; padding:8px 10px; font-weight:normal;">Комната</th><th style="text-align:right; padding:8px 10px; font-weight:normal;">Действие</th></tr>';
     
     data.rooms.forEach(r => {
       const dateStr = r.created_at ? r.created_at.replace('T', ' ').substring(0, 16) : '—';
-      html += `<tr style="border-bottom:1px solid #2a2e38;">
-        <td style="padding:8px 5px;">
-          <div style="font-weight:bold; color:#5b9aff;">${r.room_id}</div>
+      html += `<tr style="border-bottom:1px solid #23262e;">
+        <td style="padding:8px 10px;">
+          <div style="font-weight:bold; color:#5b9aff; margin-bottom:2px;">${r.room_id}</div>
           <div style="color:#6a7280; font-size:10px;">${dateStr}</div>
         </td>
-        <td style="text-align:right; padding:8px 5px;">
-          <a href="?room=${r.room_id}" target="_blank" style="color:#6cd88a; text-decoration:none; margin-right:10px;" title="Перейти">↗</a>
-          <button onclick="adminDeleteRoom('${r.room_id}')" style="background:transparent; border:none; color:#ff5050; cursor:pointer;" title="Удалить">🗑</button>
+        <td style="text-align:right; padding:8px 10px; white-space:nowrap;">
+          <a href="?room=${r.room_id}" target="_blank" style="color:#6cd88a; text-decoration:none; margin-right:12px; font-size:14px;" title="Перейти">↗</a>
+          <button onclick="adminDeleteRoom('${r.room_id}')" style="background:transparent; border:none; color:#ff5050; cursor:pointer; font-size:14px;" title="Удалить">🗑</button>
         </td>
       </tr>`;
     });

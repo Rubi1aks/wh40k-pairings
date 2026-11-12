@@ -56,6 +56,45 @@ def validate_table(ws):
 
     return players, enemies
 
+def detect_team_size(ws):
+    """
+    Надежно определяет размер команды по заголовкам таблицы.
+    Ищет строку заголовков и считает количество уникальных врагов (блоков Мой/Не мой).
+    """
+    # 1. Ищем строку с заголовками (обычно 1-я или 2-я)
+    header_row = None
+    for r in range(1, 10):
+        row_vals = [str(c.value).strip().lower() for c in ws[r] if c.value]
+        if any(x in row_vals for x in ["мой", "не мой", "деф", "атк", "def", "atk"]):
+            header_row = r
+            break
+
+    if header_row is None:
+        return 6  # Дефолт, если совсем не нашли
+
+    # 2. Считаем уникальные команды по заголовкам
+    teams = set()
+    def is_def(lbl):
+        s = str(lbl).strip().lower()
+        return "мой" in s or "деф" in s or "защ" in s
+
+    for c in range(2, ws.max_column + 1):
+        lab = ws.cell(row=header_row, column=c).value
+        if lab is not None and is_def(lab):
+            # Если это столбец с "Мой деф" - значит, начинается новая команда
+            # Берем название команды из первой строки (row 1) для этого столбца
+            team_name = ws.cell(row=1, column=c).value
+            if team_name:
+                teams.add(str(team_name).strip())
+            else:
+                # Если названия нет, просто считаем количество блоков "Мой/Не мой"
+                teams.add(f"team_{c}")
+
+    # 3. Если нашли команды - возвращаем их количество
+    if teams:
+        return len(teams)
+
+    return 6  # Дефолт
 
 def _to_score(v):
     if v is None:

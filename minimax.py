@@ -44,7 +44,6 @@ def validate_table(ws):
         lab = ws.cell(row=2, column=c).value
         if lab is None:
             continue
-
         if is_def(lab):
             nxt = ws.cell(row=2, column=c + 1).value
             if nxt is not None and is_atk(nxt):
@@ -318,7 +317,6 @@ def generate_pairing(players, enemies, sm, sn, scale, format_type):
 # ============================================================ winrates
 
 LH_BASE = "https://listhammer.info"
-WINRATES_INCLUDE_RTTS = True
 
 WINRATES_FACTIONS = [
     ("adepta-sororitas", "Adepta Sororitas"),
@@ -351,12 +349,8 @@ WINRATES_FACTIONS = [
     ("world-eaters", "World Eaters"),
 ]
 
-NUXT_RE = re.compile(
-    r'<script[^>]*id="__NUXT_DATA__"[^>]*>(.*?)</script>',
-    re.DOTALL,
-)
-DEVAL_WRAPPERS = {'ShallowReactive', 'Reactive', 'Ref', 'ShallowRef',
-                  'EmptyRef', 'EmptyShallowRef'}
+NUXT_RE = re.compile(r'<script[^>]*id="__NUXT_DATA__"[^>]*>(.*?)</script>', re.DOTALL)
+DEVAL_WRAPPERS = {'ShallowReactive', 'Reactive', 'Ref', 'ShallowRef', 'EmptyRef', 'EmptyShallowRef'}
 
 
 def _devalue_decode(data):
@@ -394,6 +388,24 @@ def _devalue_decode(data):
     return resolve(1) if len(data) > 1 else None
 
 
+# Жестко закодированные периоды, так как они статичны на Listhammer
+WINRATES_PERIODS = [
+    {"label": "This Weekend", "value": "weekend"},
+    {"label": "Last 4 Weeks", "value": "4"},
+    {"label": "Since Dataslate (Sep 30)", "value": "dataslate"}
+]
+
+
+def fetch_listhammer_periods(log=None):
+    """Возвращает фиксированный список периодов Listhammer."""
+    if log:
+        try:
+            log("[periods] returning hardcoded periods")
+        except Exception:
+            pass
+    return WINRATES_PERIODS
+
+
 def _normalize_opponent_name(name):
     if not isinstance(name, str):
         return name
@@ -402,51 +414,95 @@ def _normalize_opponent_name(name):
     return name
 
 
-def _fetch_winrates_for_faction(slug, range_val="4", include_rtt=True):
-    params = []
-    params.append('includeRtt=true' if include_rtt else 'includeRtt=false')
-    if range_val:
-        params.append(f'range={range_val}')
+def _find_matchups_in_json(obj, depth=0):
+    """Рекурсивно ищет matchups в JSON-ответе."""
+    if depth > 20:
+        return None
+    if isinstance(obj, dict):
+        if 'matchups' in obj and isinstance(obj['matchups'], list):
+            matchups = {}
+            for row in obj['matchups']:
+                opp = row.get('opponentFaction')
+                wr = row.get('winRate')
+                if opp and wr is not None:
+                    if isinstance(wr, str):
+                        try:
+                            wr = float(wr.rstrip('%').strip())
+                        except ValueError:
+                            continue
+                    matchups[_normalize_opponent_name(opp)] = float(wr)
+            if matchups:
+                return matchups
+        for v in obj.values():
+            res = _find_matchups_in_json(v, depth + 1)
+            if res:
+                return res
+    elif isinstance(obj, list):
+        for item in obj:
+            res = _find_matchups_in_json(item, depth + 1)
+            if res:
+                return res
+    return None
 
-    qs = ('?' + '&'.join(params)) if params else ''
-    url = f"{LH_BASE}/factions/{slug}{qs}"
-    req = urllib.request.Request(url, headers={
+
+def _fetch_winrates_for_faction(slug, range_val="4", include_rtt=True):
+    rtt_str = "true" if include_rtt else "false"
+
+    # 1. Пробуем Nuxt Payload API (самый надежный способ получить данные страницы в JSON)
+    payload_urls = [
+        f"{LH_BASE}/factions/{slug}/_payload.json?range={range_val}&includeRtt={rtt_str}",
+        f"{LH_BASE}/factions/{slug}/_payload.json?includeRtt={rtt_str}&range={range_val}"
+    ]
+    for url in payload_urls:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode('utf-8'))
+                matchups = _find_matchups_in_json(data)
+                if matchups:
+                    return matchups
+        except Exception:
+            pass
+
+    # 2. Пробуем внутреннее API Listhammer
+    api_urls = [
+        f"{LH_BASE}/api/factions/{slug}/matchups?range={range_val}&includeRtt={rtt_str}",
+        f"{LH_BASE}/api/factions/{slug}?range={range_val}&includeRtt={rtt_str}",
+        f"{LH_BASE}/api/stats/factions/{slug}?range={range_val}&includeRtt={rtt_str}",
+        f"{LH_BASE}/api/stats/factions?range={range_val}&includeRtt={rtt_str}&faction={slug}"
+    ]
+    for url in api_urls:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode('utf-8'))
+                matchups = _find_matchups_in_json(data)
+                if matchups:
+                    return matchups
+        except Exception:
+            pass
+
+    # 3. Fallback: парсим HTML (добавляем _t для обхода кэша SSR)
+    html_url = f"{LH_BASE}/factions/{slug}?range={range_val}&includeRtt={rtt_str}&_t={int(time.time())}"
+    req = urllib.request.Request(html_url, headers={
         'User-Agent': 'Mozilla/5.0 (personal wh40k pairing tool)',
         'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9',
     })
     with urllib.request.urlopen(req, timeout=30) as r:
         html = r.read().decode('utf-8', errors='replace')
+
     m = NUXT_RE.search(html)
     if not m:
         raise RuntimeError("__NUXT_DATA__ не найден в HTML")
+
     raw = json.loads(m.group(1))
     root = _devalue_decode(raw)
-    if not isinstance(root, dict) or 'data' not in root:
-        raise RuntimeError("не удалось раскодировать Nuxt-полезную нагрузку")
-    page_data = root['data']
-    if not isinstance(page_data, dict):
-        raise RuntimeError("неожиданная структура root['data']")
-    faction_payload = None
-    for _, v in page_data.items():
-        if isinstance(v, dict) and 'matchups' in v:
-            faction_payload = v
-            break
-    if not faction_payload:
-        raise RuntimeError("в payload нет matchups")
-    matchups = {}
-    for row in faction_payload.get('matchups', []):
-        opp = row.get('opponentFaction')
-        wr = row.get('winRate')
-        if opp is None or wr is None:
-            continue
-        if isinstance(wr, str):
-            try:
-                wr = float(wr.rstrip('%').strip())
-            except ValueError:
-                continue
-        matchups[_normalize_opponent_name(opp)] = float(wr)
-    return matchups
+    matchups = _find_matchups_in_json(root)
+    if matchups:
+        return matchups
+
+    raise RuntimeError("не удалось найти matchups в ответе")
 
 
 def scrape_winrates(range_val="4", include_rtt=True, log=print):
@@ -463,83 +519,3 @@ def scrape_winrates(range_val="4", include_rtt=True, log=print):
         log(f"  ✓ [{i}/{total}] {canonical}: {len(matchups)} matchups")
         time.sleep(1.0)
     return matrix
-
-
-# ============================================================ periods
-
-def _find_periods_in_obj(obj, depth=0):
-    """Рекурсивно ищет в декодированном Nuxt-стейте список периодов."""
-    if depth > 30:
-        return None
-    
-    # Ищем прямо в текущем списке
-    if isinstance(obj, list):
-        # Проверяем, похоже ли на список опций PrimeVue
-        found_opts = []
-        for item in obj:
-            if isinstance(item, dict) and 'label' in item and 'value' in item:
-                found_opts.append({"label": str(item['label']), "value": str(item['value'])})
-        if len(found_opts) >= 2:
-            return found_opts
-            
-        # Рекурсивно идем глубже
-        for item in obj:
-            res = _find_periods_in_obj(item, depth + 1)
-            if res:
-                return res
-                
-    # Если это словарь, проверяем его значения
-    elif isinstance(obj, dict):
-        for v in obj.values():
-            res = _find_periods_in_obj(v, depth + 1)
-            if res:
-                return res
-                
-    return None
-
-
-def fetch_listhammer_periods(log=None):
-    fallback = [
-        {"label": "This Weekend fb", "value": "weekend"},
-        {"label": "Last 4 Weeks fb", "value": "4"},
-        {"label": "Since Dataslate fb", "value": "dataslate"}
-    ]
-
-    def out(msg):
-        if log:
-            try:
-                log(msg)
-            except Exception:
-                pass
-
-    try:
-        # Берем главную страницу статистики, где есть глобальный селектор
-        req = urllib.request.Request(
-            "https://listhammer.info/stats",
-            headers={'User-Agent': 'Mozilla/5.0 (personal wh40k pairing tool)'},
-        )
-        html = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='replace')
-        
-        m = NUXT_RE.search(html)
-        if m:
-            raw = json.loads(m.group(1))
-            root = _devalue_decode(raw)
-            
-            # Ищем в Nuxt-стейте
-            found = _find_periods_in_obj(root)
-            if found:
-                out(f"[periods] found {len(found)} periods in __NUXT_DATA__")
-                # Очищаем от возможных дублей
-                unique_periods = []
-                seen = set()
-                for p in found:
-                    if p['value'] not in seen:
-                        unique_periods.append(p)
-                        seen.add(p['value'])
-                return unique_periods
-    except Exception as e:
-        out(f"[periods] fetch error: {e}")
-
-    out("[periods] falling back to hardcoded list")
-    return fallback
-    

@@ -987,7 +987,7 @@ async function fetchSheets() {
     if (data.sheets.length > 0) {
        const firstSize = SHEET_SIZES[data.sheets[0]];
        if (firstSize) {
-         document.getElementById('tsize').value = firstSize;
+         document.getElementById('tsize').value = String(firstSize);
          toggleFormatSelect();
        }
     }
@@ -995,7 +995,7 @@ async function fetchSheets() {
     sel.onchange = () => {
        const selectedSize = SHEET_SIZES[sel.value];
        if (selectedSize) {
-         document.getElementById('tsize').value = selectedSize;
+         document.getElementById('tsize').value = String(selectedSize);
          toggleFormatSelect();
        }
     };

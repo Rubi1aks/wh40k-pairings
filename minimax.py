@@ -500,9 +500,9 @@ def _find_periods_in_obj(obj, depth=0):
 
 def fetch_listhammer_periods(log=None):
     fallback = [
-        {"label": "This Weekend", "value": "weekend"},
-        {"label": "Last 4 Weeks", "value": "4"},
-        {"label": "Since Dataslate (Sep 30)", "value": "dataslate"}
+        {"label": "This Weekend fb", "value": "weekend"},
+        {"label": "Last 4 Weeks fb", "value": "4"},
+        {"label": "Since Dataslate fb", "value": "dataslate"}
     ]
 
     def out(msg):

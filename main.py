@@ -64,17 +64,24 @@ def download_gsheet(url):
 def get_sheets(req: SheetRequest):
     try:
         path = download_gsheet(req.url)
-        wb = openpyxl.load_workbook(path, read_only=True)
+        
+        # ВАЖНО: read_only=False, иначе openpyxl не читает значения ячеек (возвращает None)
+        wb = openpyxl.load_workbook(path, data_only=True, read_only=False)
         os.remove(path)
         
         sizes = {}
         for name in wb.sheetnames:
             ws = wb[name]
+            # Пытаемся определить размер через новую надежную функцию
             try:
-                players, _ = minimax.validate_table(ws)
-                sizes[name] = len(players)
-            except:
-                sizes[name] = 6
+                sizes[name] = minimax.detect_team_size(ws)
+            except Exception:
+                # Fallback на старую логику (через игроков)
+                try:
+                    players, _ = minimax.validate_table(ws)
+                    sizes[name] = len(players)
+                except Exception:
+                    sizes[name] = 6
                 
         return {"sheets": wb.sheetnames, "sizes": sizes}
     except Exception as e:
